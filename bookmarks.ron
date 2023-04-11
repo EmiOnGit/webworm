@@ -1,0 +1,32 @@
+(
+    entries: [
+        (
+            name: "one piece",
+            site: "https://www.wcostream.net/one-piece-episode-1058-english-subbed",
+            next: (
+                iden: NumberOcc(0),
+            ),
+        ),
+        (
+            name: "vinland saga",
+            site: "https://www.wcostream.net/vinland-saga-season-2-episode-15-english-subbed",
+            next: (
+                iden: NumberOcc(1),
+            ),
+        ),
+        (
+            name: "pick up women in a dungeon",
+            site: "https://www.wcostream.net/dungeon-ni-deai-wo-motomeru-no-wa-machigatteiru-darou-ka-iv-episode-23-english-subbed",
+            next: (
+                iden: NumberOcc(0),
+            ),
+        ),
+        (
+            name: "max out defense",
+            site: "https://www.wcostream.net/itai-no-wa-iya-nano-de-bougyoryoku-ni-kyokufuri-shitai-to-omoimasu-season-2-episode-11-english-subbed",
+            next: (
+                iden: NumberOcc(1),
+            ),
+        ),
+    ],
+)

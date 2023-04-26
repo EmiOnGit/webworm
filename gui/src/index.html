@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Webworm</title>
+    <script type="module" src="/main.js" defer></script>
+    <style>
+      .logo.vanilla:hover {
+        filter: drop-shadow(0 0 2em #ffe21c);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Bookmarks</h1>
+
+      <div class="row">
+      <button id="refresh"> Refresh</botton>
+      </div>
+      <div class="row">
+
+      <table id=bookmark-table>
+        <tr>
+        <th></th>
+        <th>Name</th>
+        <th>Episode</th>
+        <th>Url</th>
+        </tr>
+      </table>
+      </div>
+      <div class = "row">
+        <input id="create-name" placeholder="Enter a name"/>
+        <input id="create-episode" placeholder=" Enter the current episode">
+        <input id="create-url" placeholder="Enter a url"/>
+        <button id="create-button" type='button'> Create</botton>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{filter::Filter, task::TmdbMovie, tmdb::TmdbConfig};
+use crate::{bookmark::Bookmark, movie::TmdbMovie, tmdb::TmdbConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
-    pub input_value: String,
-    pub filter: Filter,
-    pub tasks: Vec<TmdbMovie>,
+    pub movies: Vec<TmdbMovie>,
+    pub bookmarks: Vec<Bookmark>,
     #[serde(skip)]
     pub tmdb_config: Option<TmdbConfig>,
 }
@@ -30,15 +29,14 @@ impl SavedState {
         self
     }
     fn path() -> std::path::PathBuf {
-        let mut path = if let Some(project_dirs) =
-            directories_next::ProjectDirs::from("rs", "Iced", "Todos")
-        {
-            project_dirs.data_dir().into()
-        } else {
-            std::env::current_dir().unwrap_or_default()
-        };
+        let mut path =
+            if let Some(project_dirs) = directories_next::ProjectDirs::from("", "", "Webworm") {
+                project_dirs.data_dir().into()
+            } else {
+                std::env::current_dir().unwrap_or_default()
+            };
 
-        path.push("todos.json");
+        path.push("state.json");
 
         path
     }
@@ -55,10 +53,21 @@ impl SavedState {
             .await
             .map_err(|_| LoadError::File)?;
         let tmdb_config = TmdbConfig::new().await.ok();
-        println!("conf: {:?}", tmdb_config);
         serde_json::from_str::<SavedState>(&contents)
             .map_err(|_| LoadError::Format)
             .map(|state| state.with_tmdb(tmdb_config))
+            .map(|mut state| {
+                for bookmark in &state.bookmarks {
+                    if let Some(i) = state
+                        .movies
+                        .iter()
+                        .position(|movie| movie.id == bookmark.id)
+                    {
+                        state.movies[i].is_bookmark = true;
+                    }
+                }
+                state
+            })
     }
 
     pub async fn save(self) -> Result<(), SaveError> {

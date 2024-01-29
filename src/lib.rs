@@ -1,8 +1,9 @@
+pub mod bookmark;
 pub mod filter;
 pub mod gui;
 pub mod message;
+pub mod movie;
 pub mod save;
-pub mod task;
 pub mod tmdb;
 
 pub fn add(left: usize, right: usize) -> usize {

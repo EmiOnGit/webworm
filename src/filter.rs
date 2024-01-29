@@ -1,21 +1,19 @@
 use serde::{Deserialize, Serialize};
 
-use crate::task::TmdbMovie;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Filter {
     #[default]
-    All,
-    Active,
+    Bookmarks,
+    Search,
     Completed,
 }
 
 impl Filter {
-    pub fn matches(self, task: &TmdbMovie) -> bool {
+    pub fn empty_message(&self) -> &str {
         match self {
-            Filter::All => true,
-            Filter::Active => !task.is_completed(),
-            Filter::Completed => task.is_completed(),
+            Filter::Bookmarks => "You have no bookmarks yet",
+            Filter::Search => "Type in a search  term",
+            Filter::Completed => "You have no completed movies yet",
         }
     }
 }

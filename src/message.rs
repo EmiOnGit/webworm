@@ -50,4 +50,7 @@ pub enum BookmarkMessage {
     IncrS,
     DecrE,
     DecrS,
+    LinkInputChanged(String),
+    LinkInputSubmit,
+    LinkToClipboard,
 }

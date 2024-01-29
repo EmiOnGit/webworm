@@ -16,12 +16,14 @@ use once_cell::sync::Lazy;
 
 use crate::bookmark::Bookmark;
 use crate::message::{empty_message, loading_message, Message};
+
 const TITLE_NAME: &str = "Webworm";
 pub const ICON_FONT: Font = Font::with_name("Noto Color Emoji");
 const ICON_FONT_BYTES: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
+pub static INPUT_LINK_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 static FONT_SIZE_HEADER: u16 = 30;
-static FONT_SIZE: u16 = 18;
+pub static FONT_SIZE: u16 = 18;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
 
 #[derive(Debug)]
@@ -132,7 +134,7 @@ impl Application for App {
                     }
                     Message::BookmarkMessage(i, message) => {
                         if let Some(bookmark) = state.bookmarks.get_mut(i) {
-                            bookmark.apply(message);
+                            return bookmark.apply(message);
                         }
                         Command::none()
                     }
@@ -189,9 +191,9 @@ impl Application for App {
                 bookmarks,
                 ..
             }) => {
+                let header = view_header();
                 let input = view_input(input_value);
                 let controls = view_controls(tasks, *filter);
-                let header = view_header();
                 let body = match filter {
                     Filter::Search => {
                         if tasks.is_empty() {

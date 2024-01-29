@@ -2,6 +2,7 @@ pub mod filter;
 pub mod gui;
 pub mod save;
 pub mod task;
+pub mod tmdb;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

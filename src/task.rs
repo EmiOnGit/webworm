@@ -4,18 +4,23 @@ use iced::{alignment, Length};
 use iced::{Alignment, Element};
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Task {
-    #[serde(default = "Uuid::new_v4")]
-    pub id: Uuid,
+pub struct TmdbMovie {
+    pub id: usize,
     description: String,
+    genre_ids: Vec<usize>,
+    overview: String,
+    vote_average: f32,
+    original_name: String,
+    name: String,
+    popularity: usize,
     completed: bool,
 
     #[serde(skip)]
     state: TaskState,
 }
-impl Task {
+impl TmdbMovie {
     pub fn is_completed(&self) -> bool {
         self.completed
     }
@@ -42,18 +47,9 @@ pub enum TaskMessage {
     Delete,
 }
 
-impl Task {
+impl TmdbMovie {
     pub fn text_input_id(i: usize) -> text_input::Id {
         text_input::Id::new(format!("task-{i}"))
-    }
-
-    pub fn new(description: String) -> Self {
-        Task {
-            id: Uuid::new_v4(),
-            description,
-            completed: false,
-            state: TaskState::Idle,
-        }
     }
 
     pub fn update(&mut self, message: TaskMessage) {

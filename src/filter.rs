@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::task::Task;
+use crate::task::TmdbMovie;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Filter {
@@ -11,7 +11,7 @@ pub enum Filter {
 }
 
 impl Filter {
-    pub fn matches(self, task: &Task) -> bool {
+    pub fn matches(self, task: &TmdbMovie) -> bool {
         match self {
             Filter::All => true,
             Filter::Active => !task.is_completed(),

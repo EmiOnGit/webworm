@@ -1,15 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    filter::Filter,
-    task::{Task},
-};
+use crate::{filter::Filter, task::TmdbMovie, tmdb::TmdbConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
     pub input_value: String,
     pub filter: Filter,
-    pub tasks: Vec<Task>,
+    pub tasks: Vec<TmdbMovie>,
+    #[serde(skip)]
+    pub tmdb_config: Option<TmdbConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,6 +25,10 @@ pub enum SaveError {
 }
 
 impl SavedState {
+    fn with_tmdb(mut self, tmdb_config: Option<TmdbConfig>) -> Self {
+        self.tmdb_config = tmdb_config;
+        self
+    }
     fn path() -> std::path::PathBuf {
         let mut path = if let Some(project_dirs) =
             directories_next::ProjectDirs::from("rs", "Iced", "Todos")
@@ -39,7 +42,6 @@ impl SavedState {
 
         path
     }
-
     pub async fn load() -> Result<SavedState, LoadError> {
         use async_std::prelude::*;
 
@@ -52,8 +54,11 @@ impl SavedState {
         file.read_to_string(&mut contents)
             .await
             .map_err(|_| LoadError::File)?;
-
-        serde_json::from_str(&contents).map_err(|_| LoadError::Format)
+        let tmdb_config = TmdbConfig::new().await.ok();
+        println!("conf: {:?}", tmdb_config);
+        serde_json::from_str::<SavedState>(&contents)
+            .map_err(|_| LoadError::Format)
+            .map(|state| state.with_tmdb(tmdb_config))
     }
 
     pub async fn save(self) -> Result<(), SaveError> {

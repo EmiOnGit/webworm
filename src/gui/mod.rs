@@ -2,7 +2,8 @@ mod message;
 
 use crate::filter::Filter;
 use crate::save::SavedState;
-use crate::task::{icon, Task, TaskMessage};
+use crate::task::{icon, TaskMessage, TmdbMovie};
+use crate::tmdb::{queue_tv_series, request, TmdbConfig};
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
 use iced::keyboard;
@@ -23,7 +24,8 @@ const ICON_FONT_BYTES: &[u8] = include_bytes!("../../assets/NotoColorEmoji.ttf")
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 static FONT_SIZE_HEADER: u16 = 30;
 static FONT_SIZE: u16 = 18;
-static FG: Color = Color::from_rgb(0.5, 0.5, 0.5);
+static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
+
 #[derive(Debug)]
 pub enum App {
     Loading,
@@ -33,9 +35,10 @@ pub enum App {
 pub struct State {
     input_value: String,
     filter: Filter,
-    tasks: Vec<Task>,
+    movies: Vec<TmdbMovie>,
     dirty: bool,
     saving: bool,
+    tmdb_config: Option<TmdbConfig>,
 }
 impl Application for App {
     type Message = Message;
@@ -65,7 +68,8 @@ impl Application for App {
                         *self = App::Loaded(State {
                             input_value: state.input_value,
                             filter: state.filter,
-                            tasks: state.tasks,
+                            movies: state.tasks,
+                            tmdb_config: state.tmdb_config,
                             ..State::default()
                         });
                     }
@@ -86,12 +90,24 @@ impl Application for App {
 
                         Command::none()
                     }
-                    Message::CreateTask => {
+                    Message::ExecuteQuery => {
                         if !state.input_value.is_empty() {
-                            state.tasks.push(Task::new(state.input_value.clone()));
+                            let config = state
+                                .tmdb_config
+                                .clone()
+                                .expect("tmdb config is not loaded");
+                            let query = state.input_value.clone();
                             state.input_value.clear();
+                            Command::perform(queue_tv_series(config, query), |data| {
+                                Message::QueryResponse(data.ok())
+                            })
+                        } else {
+                            Command::none()
                         }
-
+                    }
+                    Message::QueryResponse(text) => {
+                        println!("RESPONSE:");
+                        println!("{text:?}");
                         Command::none()
                     }
                     Message::FilterChanged(filter) => {
@@ -100,18 +116,18 @@ impl Application for App {
                         Command::none()
                     }
                     Message::TaskMessage(i, TaskMessage::Delete) => {
-                        state.tasks.remove(i);
+                        state.movies.remove(i);
 
                         Command::none()
                     }
                     Message::TaskMessage(i, task_message) => {
-                        if let Some(task) = state.tasks.get_mut(i) {
+                        if let Some(task) = state.movies.get_mut(i) {
                             let should_focus = matches!(task_message, TaskMessage::Edit);
 
                             task.update(task_message);
 
                             if should_focus {
-                                let id = Task::text_input_id(i);
+                                let id = TmdbMovie::text_input_id(i);
                                 Command::batch(vec![
                                     text_input::focus(id.clone()),
                                     text_input::select_all(id),
@@ -147,12 +163,13 @@ impl Application for App {
                 let save = if state.dirty && !state.saving {
                     state.dirty = false;
                     state.saving = true;
-
                     Command::perform(
                         SavedState {
                             input_value: state.input_value.clone(),
                             filter: state.filter,
-                            tasks: state.tasks.clone(),
+                            tasks: state.movies.clone(),
+                            // We ignore it anyway since we save it in a text file
+                            tmdb_config: None,
                         }
                         .save(),
                         Message::Saved,
@@ -172,30 +189,30 @@ impl Application for App {
             App::Loaded(State {
                 input_value,
                 filter,
-                tasks,
+                movies: tasks,
                 ..
             }) => {
                 let title = text("Webworm")
                     .size(FONT_SIZE_HEADER)
-                    .style(FG)
+                    .style(FG_COLOR)
                     .horizontal_alignment(alignment::Horizontal::Left);
                 let layer = text("Layer")
                     // .width(Length::Fill)
                     .size(FONT_SIZE_HEADER)
-                    .style(FG)
+                    .style(FG_COLOR)
                     .horizontal_alignment(alignment::Horizontal::Center);
 
                 // let settings = icon('\u{0F00DE}')
                 let settings = icon('⚙')
                     .width(Length::Fill)
                     .size(FONT_SIZE_HEADER)
-                    .style(FG)
+                    .style(FG_COLOR)
                     .horizontal_alignment(alignment::Horizontal::Right);
 
                 let input = text_input("What needs to be done?", input_value)
                     .id(INPUT_ID.clone())
                     .on_input(Message::InputChanged)
-                    .on_submit(Message::CreateTask)
+                    .on_submit(Message::ExecuteQuery)
                     .padding(15)
                     .size(FONT_SIZE);
 
@@ -258,7 +275,7 @@ impl Application for App {
         })
     }
 }
-fn view_controls(tasks: &[Task], current_filter: Filter) -> Element<Message> {
+fn view_controls(tasks: &[TmdbMovie], current_filter: Filter) -> Element<Message> {
     let tasks_left = tasks.iter().filter(|task| !task.is_completed()).count();
 
     let filter_button = |label, filter, current_filter| {

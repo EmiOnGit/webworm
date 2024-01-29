@@ -105,9 +105,9 @@ impl Application for App {
                     }
                     Message::QueryResponse(text) => {
                         if let Some(text) = text {
-                            let response: TmdbResponse = serde_json::from_str(&text).unwrap();
+                            let mut response: TmdbResponse = serde_json::from_str(&text).unwrap();
 
-                            state.movies = response.movies().clone();
+                            state.movies = response.movies(&state.bookmarks).clone();
                         }
                         Command::none()
                     }

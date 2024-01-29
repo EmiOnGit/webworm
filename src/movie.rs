@@ -4,6 +4,8 @@ use iced::{alignment, Length};
 use iced::{Alignment, Element};
 
 use serde::{Deserialize, Serialize};
+
+use crate::bookmark::Bookmark;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TmdbMovie {
     pub id: usize,
@@ -25,6 +27,9 @@ pub enum MovieMessage {
 impl TmdbMovie {
     fn rating(&self) -> u8 {
         (self.vote_average * 10.) as u8
+    }
+    pub fn set_bookmark(&mut self, bookmarks: &[Bookmark]) {
+        self.is_bookmark = bookmarks.iter().any(|bookmark| bookmark.id == self.id);
     }
 
     pub fn update(&mut self, message: MovieMessage) {

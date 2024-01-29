@@ -1,4 +1,5 @@
 pub mod bookmark;
+pub mod bookmark_link;
 pub mod filter;
 pub mod gui;
 pub mod message;

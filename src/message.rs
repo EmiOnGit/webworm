@@ -16,7 +16,8 @@ pub enum Message {
     ExecuteQuery,
     QueryResponse(Option<String>),
     FilterChanged(Filter),
-    TaskMessage(usize, MovieMessage),
+    MovieMessage(usize, MovieMessage),
+    BookmarkMessage(usize, BookmarkMessage),
     TabPressed { shift: bool },
     ToggleFullscreen(window::Mode),
 }
@@ -42,4 +43,11 @@ pub fn empty_message(message: &str) -> Element<'_, Message> {
     .height(200)
     .center_y()
     .into()
+}
+#[derive(Clone, Debug)]
+pub enum BookmarkMessage {
+    IncrE,
+    IncrS,
+    DecrE,
+    DecrS,
 }

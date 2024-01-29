@@ -116,7 +116,7 @@ impl Application for App {
 
                         Command::none()
                     }
-                    Message::TaskMessage(i, MovieMessage::ToggleBookmark) => {
+                    Message::MovieMessage(i, MovieMessage::ToggleBookmark) => {
                         if let Some(movie) = state.movies.get_mut(i) {
                             movie.update(MovieMessage::ToggleBookmark);
                             let movie: &TmdbMovie = movie;
@@ -127,6 +127,12 @@ impl Application for App {
                             } else {
                                 state.bookmarks.push(Bookmark::from(movie));
                             }
+                        }
+                        Command::none()
+                    }
+                    Message::BookmarkMessage(i, message) => {
+                        if let Some(bookmark) = state.bookmarks.get_mut(i) {
+                            bookmark.apply(message);
                         }
                         Command::none()
                     }
@@ -195,7 +201,7 @@ impl Application for App {
                                 (
                                     task.id,
                                     task.view(i)
-                                        .map(move |message| Message::TaskMessage(i, message)),
+                                        .map(move |message| Message::MovieMessage(i, message)),
                                 )
                             }))
                             .spacing(10)
@@ -221,7 +227,7 @@ impl Application for App {
                                         (
                                             bookmark.id,
                                             bookmark.view(i).map(move |message| {
-                                                Message::TaskMessage(i, message)
+                                                Message::BookmarkMessage(i, message)
                                             }),
                                         )
                                     }),

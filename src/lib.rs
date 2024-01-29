@@ -1,5 +1,6 @@
 pub mod filter;
 pub mod gui;
+pub mod message;
 pub mod save;
 pub mod task;
 pub mod tmdb;

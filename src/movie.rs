@@ -22,6 +22,7 @@ pub struct TmdbMovie {
 #[derive(Debug, Clone)]
 pub enum MovieMessage {
     ToggleBookmark,
+    LoadDetails,
 }
 
 impl TmdbMovie {
@@ -37,6 +38,7 @@ impl TmdbMovie {
             MovieMessage::ToggleBookmark => {
                 self.is_bookmark = !self.is_bookmark;
             }
+            MovieMessage::LoadDetails => {}
         }
     }
 
@@ -60,6 +62,11 @@ impl TmdbMovie {
                     .style(theme::Text::Default),
                 button(icon('✍'))
                     .on_press(MovieMessage::ToggleBookmark)
+                    .padding(10)
+                    .width(Length::FillPortion(1))
+                    .style(theme::Button::Text),
+                button(text("details"))
+                    .on_press(MovieMessage::LoadDetails)
                     .padding(10)
                     .width(Length::FillPortion(1))
                     .style(theme::Button::Text),

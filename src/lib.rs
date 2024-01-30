@@ -4,6 +4,7 @@ pub mod filter;
 pub mod gui;
 pub mod message;
 pub mod movie;
+pub mod movie_details;
 pub mod save;
 pub mod tmdb;
 

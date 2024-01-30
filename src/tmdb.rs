@@ -5,14 +5,14 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
 pub async fn queue_tv_series(config: TmdbConfig, query: String) -> Result<String> {
-    let request = request(&config, &query);
+    let request = request_search(&config, &query);
 
     let response = Client::new().execute(request)?;
 
     let data: String = response.text().unwrap();
     Ok(data)
 }
-fn request(config: &TmdbConfig, query: &str) -> reqwest::blocking::Request {
+fn request_search(config: &TmdbConfig, query: &str) -> reqwest::blocking::Request {
     let query_clean = query.replace(' ', "%20");
     let base_url = "https://api.themoviedb.org/3/search/tv?";
     let rest = "language=en-US&page=1";
@@ -64,4 +64,24 @@ impl TmdbResponse {
         }
         &self.results
     }
+}
+fn request_details(config: &TmdbConfig, movie_id: usize) -> reqwest::blocking::Request {
+    let base_url = "https://api.themoviedb.org/3/tv/";
+    let rest = "language=en-US&page=1";
+    let url = format!("{base_url}{movie_id}?{rest}");
+
+    Client::new()
+        .get(url)
+        .header("accept", "application/json")
+        .bearer_auth(config.token.clone())
+        .build()
+        .unwrap()
+}
+pub async fn queue_tv_series_details(config: TmdbConfig, id: usize) -> Result<String> {
+    let request = request_details(&config, id);
+
+    let response = Client::new().execute(request)?;
+
+    let data: String = response.text().unwrap();
+    Ok(data)
 }

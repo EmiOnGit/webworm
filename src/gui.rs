@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use crate::filter::Filter;
 use crate::movie::{icon, MovieMessage, TmdbMovie};
+use crate::movie_details::MovieDetails;
 use crate::save::SavedState;
-use crate::tmdb::{queue_tv_series, TmdbConfig, TmdbResponse};
+use crate::tmdb::{queue_tv_series, queue_tv_series_details, TmdbConfig, TmdbResponse};
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
 use iced::keyboard;
@@ -15,7 +18,7 @@ use iced::{Color, Command, Length, Subscription};
 use once_cell::sync::Lazy;
 
 use crate::bookmark::Bookmark;
-use crate::message::{empty_message, loading_message, Message};
+use crate::message::{empty_message, loading_message, BookmarkMessage, Message};
 
 const TITLE_NAME: &str = "Webworm";
 pub const ICON_FONT: Font = Font::with_name("Noto Color Emoji");
@@ -36,6 +39,7 @@ pub struct State {
     input_value: String,
     filter: Filter,
     movies: Vec<TmdbMovie>,
+    movie_details: HashMap<usize, MovieDetails>,
     bookmarks: Vec<Bookmark>,
     dirty: bool,
     saving: bool,
@@ -113,10 +117,31 @@ impl Application for App {
                         }
                         Command::none()
                     }
+                    Message::QueryDetailsResponse(text) => {
+                        if let Some(text) = text {
+                            let response: MovieDetails = serde_json::from_str(&text).unwrap();
+
+                            state.movie_details.insert(response.id, response);
+                        }
+                        Command::none()
+                    }
                     Message::FilterChanged(filter) => {
                         state.filter = filter;
 
                         Command::none()
+                    }
+                    Message::MovieMessage(i, MovieMessage::LoadDetails) => {
+                        if let Some(movie) = state.movies.get(i) {
+                            let config = state
+                                .tmdb_config
+                                .clone()
+                                .expect("TMDB config is not loaded");
+                            Command::perform(queue_tv_series_details(config, movie.id), |data| {
+                                Message::QueryDetailsResponse(data.ok())
+                            })
+                        } else {
+                            Command::none()
+                        }
                     }
                     Message::MovieMessage(i, MovieMessage::ToggleBookmark) => {
                         if let Some(movie) = state.movies.get_mut(i) {
@@ -129,6 +154,12 @@ impl Application for App {
                             } else {
                                 state.bookmarks.push(Bookmark::from(movie));
                             }
+                        }
+                        Command::none()
+                    }
+                    Message::BookmarkMessage(i, BookmarkMessage::Remove) => {
+                        if i < state.bookmarks.len() {
+                            state.bookmarks.remove(i);
                         }
                         Command::none()
                     }
@@ -188,6 +219,7 @@ impl Application for App {
                 input_value,
                 filter,
                 movies: tasks,
+                movie_details,
                 bookmarks,
                 ..
             }) => {
@@ -224,11 +256,12 @@ impl Application for App {
                                             !bookmark.finished
                                         }
                                     })
+                                    .map(|bookmark| (bookmark, movie_details.get(&bookmark.id)))
                                     .enumerate()
-                                    .map(|(i, bookmark)| {
+                                    .map(|(i, (bookmark, details))| {
                                         (
                                             bookmark.id,
-                                            bookmark.view(i).map(move |message| {
+                                            bookmark.view(i, details).map(move |message| {
                                                 Message::BookmarkMessage(i, message)
                                             }),
                                         )

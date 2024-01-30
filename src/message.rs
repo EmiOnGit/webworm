@@ -15,6 +15,8 @@ pub enum Message {
     InputChanged(String),
     ExecuteQuery,
     QueryResponse(Option<String>),
+    QueryDetailsResponse(Option<String>),
+    UpdateDetails(usize),
     FilterChanged(Filter),
     MovieMessage(usize, MovieMessage),
     BookmarkMessage(usize, BookmarkMessage),
@@ -46,6 +48,7 @@ pub fn empty_message(message: &str) -> Element<'_, Message> {
 }
 #[derive(Clone, Debug)]
 pub enum BookmarkMessage {
+    Remove,
     IncrE,
     IncrS,
     DecrE,

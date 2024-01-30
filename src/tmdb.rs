@@ -3,6 +3,8 @@ use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
+#[derive(Debug, Clone)]
 pub enum RequestType {
     TvSearch { query: String },
     TvDetails { id: usize },
@@ -21,8 +23,9 @@ impl RequestType {
         format!("{base_url}{body}{rest}")
     }
 }
-pub async fn request(config: &TmdbConfig, request: RequestType) -> Result<String> {
+pub async fn send_request(config: TmdbConfig, request: RequestType) -> Result<String> {
     let url = request.url();
+    warn!("send request with {url}");
     let request = Client::new()
         .get(url)
         .header("accept", "application/json")

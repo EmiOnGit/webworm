@@ -129,9 +129,10 @@ impl Bookmark {
     }
     fn details_latest(&self, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
         if let Some(details) = details {
+            let latest = details.last_published();
             text(format!(
                 "Latest: E {}, S {}",
-                details.number_of_episodes, details.number_of_seasons
+                latest.episode_number, latest.season_number
             ))
             .into()
         } else {

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing::error;
 
 use crate::{bookmark::Bookmark, movie::TmdbMovie, tmdb::TmdbConfig};
 
@@ -47,14 +48,17 @@ impl SavedState {
 
         let mut file = async_std::fs::File::open(Self::path())
             .await
-            .map_err(|_| LoadError::File)?;
+            .map_err(|_| LoadError::File)
+            .map_err(trace_io_error)?;
 
         file.read_to_string(&mut contents)
             .await
-            .map_err(|_| LoadError::File)?;
+            .map_err(|_| LoadError::File)
+            .map_err(trace_io_error)?;
         let tmdb_config = TmdbConfig::new().await.ok();
         serde_json::from_str::<SavedState>(&contents)
             .map_err(|_| LoadError::Format)
+            .map_err(trace_io_error)
             .map(|state| state.with_tmdb(tmdb_config))
             .map(|mut state| {
                 for bookmark in &state.bookmarks {
@@ -80,17 +84,20 @@ impl SavedState {
         if let Some(dir) = path.parent() {
             async_std::fs::create_dir_all(dir)
                 .await
-                .map_err(|_| SaveError::File)?;
+                .map_err(|_| SaveError::File)
+                .map_err(trace_io_error)?;
         }
 
         {
             let mut file = async_std::fs::File::create(path)
                 .await
-                .map_err(|_| SaveError::File)?;
+                .map_err(|_| SaveError::File)
+                .map_err(trace_io_error)?;
 
             file.write_all(json.as_bytes())
                 .await
-                .map_err(|_| SaveError::Write)?;
+                .map_err(|_| SaveError::Write)
+                .map_err(trace_io_error)?;
         }
 
         // This is a simple way to save at most once every couple seconds
@@ -98,4 +105,8 @@ impl SavedState {
 
         Ok(())
     }
+}
+fn trace_io_error<T: std::fmt::Debug>(t: T) -> T {
+    error!("Saving/Loading failed with {t:?}");
+    t
 }

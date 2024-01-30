@@ -6,6 +6,8 @@ use iced::{Alignment, Element};
 use serde::{Deserialize, Serialize};
 
 use crate::bookmark::Bookmark;
+use crate::message::Message;
+use crate::tmdb::RequestType;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TmdbMovie {
     pub id: usize,
@@ -22,7 +24,6 @@ pub struct TmdbMovie {
 #[derive(Debug, Clone)]
 pub enum MovieMessage {
     ToggleBookmark,
-    LoadDetails,
 }
 
 impl TmdbMovie {
@@ -38,11 +39,10 @@ impl TmdbMovie {
             MovieMessage::ToggleBookmark => {
                 self.is_bookmark = !self.is_bookmark;
             }
-            MovieMessage::LoadDetails => {}
         }
     }
 
-    pub fn view(&self, _i: usize) -> Element<MovieMessage> {
+    pub fn view(&self, i: usize) -> Element<Message> {
         let info_column = column![
             text(self.name.as_str()).style(theme::Text::Default),
             text(format!("Rating: {0}%", self.rating())),
@@ -61,12 +61,14 @@ impl TmdbMovie {
                     .width(Length::FillPortion(6))
                     .style(theme::Text::Default),
                 button(icon('✍'))
-                    .on_press(MovieMessage::ToggleBookmark)
+                    .on_press(Message::MovieMessage(i, MovieMessage::ToggleBookmark))
                     .padding(10)
                     .width(Length::FillPortion(1))
                     .style(theme::Button::Text),
                 button(text("details"))
-                    .on_press(MovieMessage::LoadDetails)
+                    .on_press(Message::ExecuteRequest(RequestType::TvDetails {
+                        id: self.id
+                    }))
                     .padding(10)
                     .width(Length::FillPortion(1))
                     .style(theme::Button::Text),

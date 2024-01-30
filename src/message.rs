@@ -6,6 +6,7 @@ use iced::{alignment, window, Color, Element, Length};
 use crate::filter::Filter;
 use crate::movie::MovieMessage;
 use crate::save::{LoadError, SaveError, SavedState};
+use crate::tmdb::RequestType;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -13,10 +14,8 @@ pub enum Message {
     FontLoaded(Result<(), font::Error>),
     Saved(Result<(), SaveError>),
     InputChanged(String),
-    ExecuteQuery,
-    QueryResponse(Option<String>),
-    QueryDetailsResponse(Option<String>),
-    UpdateDetails(usize),
+    ExecuteRequest(RequestType),
+    RequestResponse(Option<String>, RequestType),
     FilterChanged(Filter),
     MovieMessage(usize, MovieMessage),
     BookmarkMessage(usize, BookmarkMessage),

@@ -4,7 +4,7 @@ use crate::filter::Filter;
 use crate::movie::{icon, MovieMessage, TmdbMovie};
 use crate::movie_details::MovieDetails;
 use crate::save::SavedState;
-use crate::tmdb::{queue_tv_series, queue_tv_series_details, TmdbConfig, TmdbResponse};
+use crate::tmdb::{send_request, RequestType, TmdbConfig, TmdbResponse};
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
 use iced::keyboard;
@@ -12,10 +12,12 @@ use iced::theme::{self, Theme};
 use iced::widget::{
     self, button, column, container, keyed_column, row, scrollable, text, text_input,
 };
-use iced::window;
+use iced::window::{self};
 use iced::{Application, Element};
 use iced::{Color, Command, Length, Subscription};
 use once_cell::sync::Lazy;
+use serde_json::Value;
+use tracing::{error, warn};
 
 use crate::bookmark::Bookmark;
 use crate::message::{empty_message, loading_message, BookmarkMessage, Message};
@@ -44,6 +46,13 @@ pub struct State {
     dirty: bool,
     saving: bool,
     tmdb_config: Option<TmdbConfig>,
+    debug: DebugState,
+}
+#[derive(Default, Debug, PartialEq)]
+pub enum DebugState {
+    #[default]
+    Debug,
+    Release,
 }
 impl Application for App {
     type Message = Message;
@@ -94,54 +103,43 @@ impl Application for App {
 
                         Command::none()
                     }
-                    Message::ExecuteQuery => {
-                        if !state.input_value.is_empty() {
-                            let config = state
-                                .tmdb_config
-                                .clone()
-                                .expect("TMDB config is not loaded");
-                            let query = state.input_value.clone();
+                    Message::ExecuteRequest(request) => {
+                        if let RequestType::TvSearch { .. } = request {
                             state.input_value.clear();
-                            Command::perform(queue_tv_series(config, query), |data| {
-                                Message::QueryResponse(data.ok())
-                            })
-                        } else {
-                            Command::none()
                         }
+                        let config = state
+                            .tmdb_config
+                            .clone()
+                            .expect("TMDB config is not loaded");
+                        Command::perform(send_request(config, request.clone()), |data| {
+                            Message::RequestResponse(data.ok(), request)
+                        })
                     }
-                    Message::QueryResponse(text) => {
+                    Message::RequestResponse(text, query) => {
                         if let Some(text) = text {
-                            let mut response: TmdbResponse = serde_json::from_str(&text).unwrap();
-
-                            state.movies = response.movies(&state.bookmarks).clone();
-                        }
-                        Command::none()
-                    }
-                    Message::QueryDetailsResponse(text) => {
-                        if let Some(text) = text {
-                            let response: MovieDetails = serde_json::from_str(&text).unwrap();
-
-                            state.movie_details.insert(response.id, response);
+                            match query {
+                                RequestType::TvSearch { .. } => {
+                                    let mut response: TmdbResponse =
+                                        serde_json::from_str(&text).unwrap();
+                                    state.movies = response.movies(&state.bookmarks).clone();
+                                }
+                                RequestType::TvDetails { .. } => {
+                                    let response: MovieDetails =
+                                        serde_json::from_str(&text).unwrap();
+                                    if state.debug == DebugState::Debug {
+                                        let res: Value = serde_json::from_str(&text).unwrap();
+                                        let pretty = serde_json::to_string_pretty(&res).unwrap();
+                                        println!("{pretty}");
+                                    }
+                                    state.movie_details.insert(response.id, response);
+                                }
+                            }
                         }
                         Command::none()
                     }
                     Message::FilterChanged(filter) => {
                         state.filter = filter;
-
                         Command::none()
-                    }
-                    Message::MovieMessage(i, MovieMessage::LoadDetails) => {
-                        if let Some(movie) = state.movies.get(i) {
-                            let config = state
-                                .tmdb_config
-                                .clone()
-                                .expect("TMDB config is not loaded");
-                            Command::perform(queue_tv_series_details(config, movie.id), |data| {
-                                Message::QueryDetailsResponse(data.ok())
-                            })
-                        } else {
-                            Command::none()
-                        }
                     }
                     Message::MovieMessage(i, MovieMessage::ToggleBookmark) => {
                         if let Some(movie) = state.movies.get_mut(i) {
@@ -160,14 +158,17 @@ impl Application for App {
                     Message::BookmarkMessage(i, BookmarkMessage::Remove) => {
                         if i < state.bookmarks.len() {
                             state.bookmarks.remove(i);
+                        } else {
+                            warn!("tried to remove bookmark at place {}, but there are only {} bookmarks", i + 1, state.bookmarks.len() + 1)
                         }
                         Command::none()
                     }
                     Message::BookmarkMessage(i, message) => {
                         if let Some(bookmark) = state.bookmarks.get_mut(i) {
-                            return bookmark.apply(message);
+                            bookmark.apply(message)
+                        } else {
+                            Command::none()
                         }
-                        Command::none()
                     }
                     Message::Saved(_) => {
                         state.saving = false;
@@ -183,7 +184,14 @@ impl Application for App {
                         }
                     }
                     Message::ToggleFullscreen(mode) => window::change_mode(window::Id::MAIN, mode),
-                    _ => Command::none(),
+                    Message::Loaded(_) => {
+                        error!("Loaded the app state even though it should already was loaded");
+                        Command::none()
+                    }
+                    Message::FontLoaded(_) => {
+                        error!("Loaded font after loading state.");
+                        Command::none()
+                    }
                 };
 
                 if !saved {
@@ -193,6 +201,7 @@ impl Application for App {
                 let save = if state.dirty && !state.saving {
                     state.dirty = false;
                     state.saving = true;
+                    println!("save");
                     Command::perform(
                         SavedState {
                             movies: state.movies.clone(),
@@ -231,13 +240,12 @@ impl Application for App {
                         if tasks.is_empty() {
                             empty_message(filter.empty_message())
                         } else {
-                            keyed_column(tasks.iter().enumerate().map(|(i, task)| {
-                                (
-                                    task.id,
-                                    task.view(i)
-                                        .map(move |message| Message::MovieMessage(i, message)),
-                                )
-                            }))
+                            keyed_column(
+                                tasks
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, task)| (task.id, task.view(i))),
+                            )
                             .spacing(10)
                             .into()
                         }
@@ -355,7 +363,9 @@ fn view_input(input: &str) -> Element<'static, Message> {
     text_input("Search", input)
         .id(INPUT_ID.clone())
         .on_input(Message::InputChanged)
-        .on_submit(Message::ExecuteQuery)
+        .on_submit(Message::ExecuteRequest(RequestType::TvSearch {
+            query: input.to_owned(),
+        }))
         .padding(15)
         .size(FONT_SIZE)
         .into()

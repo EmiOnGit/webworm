@@ -3,27 +3,35 @@ use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-
-pub async fn queue_tv_series(config: TmdbConfig, query: String) -> Result<String> {
-    let request = request_search(&config, &query);
-
-    let response = Client::new().execute(request)?;
-
-    let data: String = response.text().unwrap();
-    Ok(data)
+pub enum RequestType {
+    TvSearch { query: String },
+    TvDetails { id: usize },
 }
-fn request_search(config: &TmdbConfig, query: &str) -> reqwest::blocking::Request {
-    let query_clean = query.replace(' ', "%20");
-    let base_url = "https://api.themoviedb.org/3/search/tv?";
-    let rest = "language=en-US&page=1";
-    let url = format!("{base_url}&query={query_clean}&{rest}");
-
-    Client::new()
+impl RequestType {
+    pub fn url(&self) -> String {
+        let base_url = "https://api.themoviedb.org/3/";
+        let rest = "language=en-US&page=1";
+        let body = match self {
+            RequestType::TvSearch { query } => {
+                let query_cleaned = query.replace(' ', "%20");
+                format!("search/tv?&query={query_cleaned}&")
+            }
+            RequestType::TvDetails { id } => format!("tv/{id}?"),
+        };
+        format!("{base_url}{body}{rest}")
+    }
+}
+pub async fn request(config: &TmdbConfig, request: RequestType) -> Result<String> {
+    let url = request.url();
+    let request = Client::new()
         .get(url)
         .header("accept", "application/json")
         .bearer_auth(config.token.clone())
         .build()
-        .unwrap()
+        .unwrap();
+    let response = Client::new().execute(request)?;
+    let data: String = response.text().unwrap();
+    Ok(data)
 }
 #[derive(Clone)]
 pub struct TmdbConfig {
@@ -64,24 +72,4 @@ impl TmdbResponse {
         }
         &self.results
     }
-}
-fn request_details(config: &TmdbConfig, movie_id: usize) -> reqwest::blocking::Request {
-    let base_url = "https://api.themoviedb.org/3/tv/";
-    let rest = "language=en-US&page=1";
-    let url = format!("{base_url}{movie_id}?{rest}");
-
-    Client::new()
-        .get(url)
-        .header("accept", "application/json")
-        .bearer_auth(config.token.clone())
-        .build()
-        .unwrap()
-}
-pub async fn queue_tv_series_details(config: TmdbConfig, id: usize) -> Result<String> {
-    let request = request_details(&config, id);
-
-    let response = Client::new().execute(request)?;
-
-    let data: String = response.text().unwrap();
-    Ok(data)
 }

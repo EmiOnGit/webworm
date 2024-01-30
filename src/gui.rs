@@ -50,8 +50,8 @@ pub struct State {
 }
 #[derive(Default, Debug, PartialEq)]
 pub enum DebugState {
-    #[default]
     Debug,
+    #[default]
     Release,
 }
 impl Application for App {
@@ -79,17 +79,33 @@ impl Application for App {
             App::Loading => {
                 match message {
                     Message::Loaded(Ok(state)) => {
+                        // set state to be loaded
                         *self = App::Loaded(State {
                             movies: state.movies,
                             tmdb_config: state.tmdb_config,
-                            bookmarks: state.bookmarks,
+                            bookmarks: state.bookmarks.clone(),
                             ..State::default()
                         });
+                        // load new data for the bookmarks
+                        let it = state
+                            .bookmarks
+                            .iter()
+                            .map(|bookmark| RequestType::TvDetails { id: bookmark.id })
+                            .map(|req| {
+                                Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
+                                    Message::ExecuteRequest(req)
+                                })
+                            });
+                        return Command::batch(it);
                     }
                     Message::Loaded(Err(_)) => {
+                        error!("Something went wrong with loading the app state. Default configuration is used");
                         *self = App::Loaded(State::default());
                     }
-                    _ => {}
+                    Message::FontLoaded(_) => {}
+                    _ => {
+                        error!("Received message {message:?} in loading phase")
+                    }
                 }
 
                 text_input::focus(INPUT_ID.clone())
@@ -124,8 +140,8 @@ impl Application for App {
                                     state.movies = response.movies(&state.bookmarks).clone();
                                 }
                                 RequestType::TvDetails { .. } => {
-                                    let response: MovieDetails =
-                                        serde_json::from_str(&text).unwrap();
+                                    let response: MovieDetails = serde_json::from_str(&text)
+                                        .expect("failed parsing with {text}");
                                     if state.debug == DebugState::Debug {
                                         let res: Value = serde_json::from_str(&text).unwrap();
                                         let pretty = serde_json::to_string_pretty(&res).unwrap();

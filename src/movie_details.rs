@@ -5,7 +5,7 @@ pub struct MovieDetails {
     pub id: usize,
     seasons: Vec<Season>,
     in_production: bool,
-    last_air_date: String,
+    last_air_date: Option<String>,
     number_of_seasons: usize,
     number_of_episodes: usize,
     pub last_episode_to_air: Option<Episode>,

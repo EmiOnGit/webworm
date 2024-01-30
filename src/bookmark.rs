@@ -13,6 +13,7 @@ use crate::gui::{FONT_SIZE, INPUT_LINK_ID};
 use crate::message::{BookmarkMessage, Message};
 use crate::movie::TmdbMovie;
 use crate::movie_details::MovieDetails;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
     pub id: usize,

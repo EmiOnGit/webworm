@@ -10,8 +10,10 @@ use crate::tmdb::RequestType;
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    // Still loading
     Loaded(Result<SavedState, LoadError>),
     FontLoaded(Result<(), font::Error>),
+    // Finished loading
     Saved(Result<(), SaveError>),
     InputChanged(String),
     ExecuteRequest(RequestType),

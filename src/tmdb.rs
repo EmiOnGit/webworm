@@ -8,6 +8,7 @@ use tracing::warn;
 pub enum RequestType {
     TvSearch { query: String },
     TvDetails { id: usize },
+    Poster { id: usize, path: String },
 }
 impl RequestType {
     pub fn url(&self) -> String {
@@ -19,6 +20,9 @@ impl RequestType {
                 format!("search/tv?&query={query_cleaned}&")
             }
             RequestType::TvDetails { id } => format!("tv/{id}?"),
+            RequestType::Poster { id, path } => {
+                return format!("https://image.tmdb.org/t/p/w500/{path}")
+            }
         };
         format!("{base_url}{body}{rest}")
     }
@@ -34,6 +38,19 @@ pub async fn send_request(config: TmdbConfig, request: RequestType) -> Result<St
         .unwrap();
     let response = Client::new().execute(request)?;
     let data: String = response.text().unwrap();
+    Ok(data)
+}
+pub async fn send_byte_request(config: TmdbConfig, request: RequestType) -> Result<Vec<u8>> {
+    let url = request.url();
+    warn!("send request with {url}");
+    let request = Client::new()
+        .get(url)
+        .header("accept", "application/json")
+        .bearer_auth(config.token.clone())
+        .build()
+        .unwrap();
+    let response = Client::new().execute(request)?;
+    let data: Vec<u8> = response.bytes().unwrap().into_iter().collect();
     Ok(data)
 }
 #[derive(Clone)]

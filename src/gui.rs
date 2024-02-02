@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::filter::Filter;
 use crate::movie::{icon, MovieMessage, TmdbMovie};
 use crate::movie_details::MovieDetails;
-use crate::save::SavedState;
+use crate::save::{load_poster, SavedState};
 use crate::tmdb::{send_request, RequestType, TmdbConfig, TmdbResponse};
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
@@ -19,7 +19,7 @@ use once_cell::sync::Lazy;
 use serde_json::Value;
 use tracing::{error, warn};
 
-use crate::bookmark::Bookmark;
+use crate::bookmark::{Bookmark, Poster};
 use crate::message::{empty_message, loading_message, BookmarkMessage, Message};
 
 const TITLE_NAME: &str = "Webworm";
@@ -27,7 +27,7 @@ pub const ICON_FONT: Font = Font::with_name("Noto Color Emoji");
 const ICON_FONT_BYTES: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 pub static INPUT_LINK_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
-static FONT_SIZE_HEADER: u16 = 30;
+pub static FONT_SIZE_HEADER: u16 = 30;
 pub static FONT_SIZE: u16 = 18;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
 
@@ -87,7 +87,7 @@ impl Application for App {
                             ..State::default()
                         });
                         // load new data for the bookmarks
-                        let it = state
+                        let iter_load_details = state
                             .bookmarks
                             .iter()
                             .map(|bookmark| RequestType::TvDetails { id: bookmark.id })
@@ -96,7 +96,20 @@ impl Application for App {
                                     Message::ExecuteRequest(req)
                                 })
                             });
-                        return Command::batch(it);
+                        let iter_load_posters = state
+                            .bookmarks
+                            .iter()
+                            .map(|bookmark| RequestType::Poster {
+                                id: bookmark.id,
+                                path: bookmark.poster_path.clone(),
+                            })
+                            .map(|req| {
+                                Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
+                                    Message::ExecuteRequest(req)
+                                })
+                            });
+
+                        return Command::batch(iter_load_details.chain(iter_load_posters));
                     }
                     Message::Loaded(Err(_)) => {
                         error!("Something went wrong with loading the app state. Default configuration is used");
@@ -127,9 +140,22 @@ impl Application for App {
                             .tmdb_config
                             .clone()
                             .expect("TMDB config is not loaded");
-                        Command::perform(send_request(config, request.clone()), |data| {
-                            Message::RequestResponse(data.ok(), request)
-                        })
+                        if let RequestType::Poster { id, path } = request {
+                            Command::perform(load_poster(id, path.clone(), config), move |data| {
+                                Message::RequestPoster(data.ok(), id)
+                            })
+                        } else {
+                            Command::perform(send_request(config, request.clone()), |data| {
+                                Message::RequestResponse(data.ok(), request)
+                            })
+                        }
+                    }
+                    Message::RequestPoster(handle, id) => {
+                        if let Some(handle) = handle {
+                            let bookmark = state.bookmarks.iter_mut().find(|b| b.id == id).unwrap();
+                            bookmark.poster = Poster::Image(handle);
+                        }
+                        Command::none()
                     }
                     Message::RequestResponse(text, query) => {
                         if let Some(text) = text {
@@ -140,8 +166,14 @@ impl Application for App {
                                     state.movies = response.movies(&state.bookmarks).clone();
                                 }
                                 RequestType::TvDetails { .. } => {
-                                    let response: MovieDetails = serde_json::from_str(&text)
-                                        .expect("failed parsing with {text}");
+                                    let Ok(response) = serde_json::from_str::<MovieDetails>(&text)
+                                    else {
+                                        error!("failed with:");
+                                        let res: Value = serde_json::from_str(&text).unwrap();
+                                        let pretty = serde_json::to_string_pretty(&res).unwrap();
+                                        println!("{pretty}");
+                                        panic!()
+                                    };
                                     if state.debug == DebugState::Debug {
                                         let res: Value = serde_json::from_str(&text).unwrap();
                                         let pretty = serde_json::to_string_pretty(&res).unwrap();
@@ -149,6 +181,7 @@ impl Application for App {
                                     }
                                     state.movie_details.insert(response.id, response);
                                 }
+                                RequestType::Poster { id: _, path: _ } => {}
                             }
                         }
                         Command::none()

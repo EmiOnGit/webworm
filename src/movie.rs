@@ -11,12 +11,14 @@ use crate::tmdb::RequestType;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TmdbMovie {
     pub id: usize,
-    genre_ids: Vec<usize>,
-    overview: String,
-    vote_average: f32,
+    pub genre_ids: Vec<usize>,
+    pub overview: String,
+    pub vote_average: f32,
     original_name: String,
     pub name: String,
-    popularity: f32,
+    pub popularity: f32,
+    pub poster_path: String,
+
     #[serde(skip)]
     pub is_bookmark: bool,
 }

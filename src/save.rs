@@ -1,7 +1,14 @@
+use std::{fs::File, io::Write};
+
+use iced::widget::image::{self, Handle};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use crate::{bookmark::Bookmark, movie::TmdbMovie, tmdb::TmdbConfig};
+use crate::{
+    bookmark::Bookmark,
+    movie::TmdbMovie,
+    tmdb::{self, RequestType, TmdbConfig},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
@@ -109,4 +116,23 @@ impl SavedState {
 fn trace_io_error<T: std::fmt::Debug>(t: T) -> T {
     error!("Saving/Loading failed with {t:?}");
     t
+}
+pub async fn load_poster(id: usize, url: String, config: TmdbConfig) -> anyhow::Result<Handle> {
+    let mut path = if let Some(dirs) = directories_next::ProjectDirs::from("", "", "Webworm") {
+        dirs.data_dir().into()
+    } else {
+        std::env::current_dir().unwrap_or_default()
+    };
+    path.push(format!("{}.png", id));
+    if path.exists() {
+        let bytes = async_std::fs::read(path).await?;
+        let handle = image::Handle::from_memory(bytes);
+        Ok(handle)
+    } else {
+        let req = RequestType::Poster { id, path: url };
+        let response = tmdb::send_byte_request(config.clone(), req).await?;
+        File::create(path)?.write(&response)?;
+        let handle = image::Handle::from_memory(response);
+        Ok(handle)
+    }
 }

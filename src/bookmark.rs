@@ -1,6 +1,6 @@
-use iced::alignment::Horizontal;
+use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{self};
-use iced::widget::{button, column, row, text, text_input};
+use iced::widget::{button, column, image, row, text, text_input};
 use iced::{clipboard, Command, Length};
 use iced::{Alignment, Element};
 
@@ -9,7 +9,7 @@ use tracing::{info, warn};
 
 use crate::bookmark_link::BookmarkLink;
 
-use crate::gui::{FONT_SIZE, INPUT_LINK_ID};
+use crate::gui::{FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
 use crate::message::{BookmarkMessage, Message};
 use crate::movie::TmdbMovie;
 use crate::movie_details::MovieDetails;
@@ -21,7 +21,22 @@ pub struct Bookmark {
     current_episode: usize,
     current_season: usize,
     pub finished: bool,
+    overview: String,
+    popularity: f32,
+    vote_average: f32,
+    genre_ids: Vec<usize>,
     link: BookmarkLinkBox,
+    #[serde(skip)]
+    pub poster: Poster,
+    #[serde(skip)]
+    show_details: bool,
+    pub poster_path: String,
+}
+#[derive(Clone, Debug, Default)]
+pub enum Poster {
+    Image(image::Handle),
+    #[default]
+    None,
 }
 impl From<&TmdbMovie> for Bookmark {
     fn from(movie: &TmdbMovie) -> Self {
@@ -32,6 +47,13 @@ impl From<&TmdbMovie> for Bookmark {
             current_season: 1,
             finished: false,
             link: BookmarkLinkBox::default(),
+            poster: Poster::None,
+            show_details: false,
+            overview: movie.overview.clone(),
+            popularity: movie.popularity,
+            vote_average: movie.vote_average,
+            genre_ids: movie.genre_ids.clone(),
+            poster_path: movie.poster_path.clone(),
         }
     }
 }
@@ -67,77 +89,120 @@ impl Bookmark {
                 return clipboard::write::<Message>(url);
             }
             BookmarkMessage::Remove => {}
+            BookmarkMessage::ToggleDetails => {
+                self.show_details = !self.show_details;
+            }
         }
         Command::none()
     }
     pub fn view(&self, _i: usize, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
-        iced::widget::container(
-            row![
-                text(self.name.as_str())
-                    .width(Length::FillPortion(1))
-                    .style(theme::Text::Default),
-                column![
+        let body = row![
+            self.picture_view(Length::FillPortion(3)),
+            column![
+                row![column![
+                    text(self.name.as_str())
+                        .horizontal_alignment(Horizontal::Center)
+                        .width(Length::FillPortion(1))
+                        .size(FONT_SIZE_HEADER)
+                        .style(theme::Text::Default),
                     row![
-                        column![
-                            button("+1")
-                                .style(theme::Button::Secondary)
-                                .on_press(BookmarkMessage::IncrE)
-                                .width(Length::Fixed(30.)),
-                            button("-1")
-                                .style(theme::Button::Secondary)
-                                .on_press(BookmarkMessage::DecrE)
-                                .width(Length::Fixed(30.)),
-                        ],
-                        column![text(format!(
-                            "E {}, S {}",
-                            self.current_episode, self.current_season
-                        )),],
-                        column![
-                            button("+1")
-                                .style(theme::Button::Secondary)
-                                .on_press(BookmarkMessage::IncrS)
-                                .width(Length::Fixed(30.)),
-                            button("-1")
-                                .style(theme::Button::Secondary)
-                                .on_press(BookmarkMessage::DecrS)
-                                .width(Length::Fixed(30.)),
-                        ],
-                        self.details_latest(details),
-                        iced::widget::container(
-                            button("X")
-                                .on_press(BookmarkMessage::Remove)
-                                .padding(10)
-                                .style(theme::Button::Secondary)
-                        )
-                        .width(Length::Fill)
-                        .align_x(Horizontal::Right),
+                        if let Some(details) = &details {
+                            let left =
+                                details.last_published().episode_number - self.current_episode;
+                            if left != 0 {
+                                text(format!(
+                                    "LEFT: {}",
+                                    details.last_published().episode_number - self.current_episode
+                                ))
+                            } else {
+                                text("No episodes left to watch")
+                            }
+                            .width(Length::FillPortion(1))
+                        } else {
+                            text("details not loaded").width(Length::FillPortion(1))
+                        },
+                        text(if self.current_season > 1 {
+                            format!(
+                                "PROGRESS: {ep}E · {s}S",
+                                ep = self.current_episode,
+                                s = self.current_season
+                            )
+                        } else {
+                            format!("PROGRESS: {ep}E", ep = self.current_episode,)
+                        })
+                        .width(Length::FillPortion(1))
+                        .horizontal_alignment(Horizontal::Right)
                     ]
-                    .spacing(20)
-                    .align_items(Alignment::Center),
-                    row![self.link_view()]
-                        .width(Length::Fill)
-                        .align_items(Alignment::Center)
-                ]
-                .width(Length::FillPortion(4))
-                .spacing(10),
+                    .align_items(Alignment::Center)
+                ],],
+                self.link_view()
             ]
-            .align_items(Alignment::Center),
-        )
-        .style(theme::Container::Box)
-        .width(Length::Fill)
-        .padding(10)
-        .into()
-    }
-    fn details_latest(&self, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
-        if let Some(details) = details {
-            let latest = details.last_published();
-            text(format!(
-                "Latest: E {}, S {}",
-                latest.episode_number, latest.season_number
-            ))
+            .width(Length::FillPortion(5)),
+            button(if self.show_details { "↓" } else { "↑" })
+                .padding(30.)
+                .style(theme::Button::Secondary)
+                .on_press(BookmarkMessage::ToggleDetails),
+        ]
+        .spacing(20)
+        .align_items(Alignment::Center);
+
+        if self.show_details {
+            column![
+                body,
+                row![
+                    column![
+                        text(format!("VOTE: {:.1}/10", self.vote_average)),
+                        text(format!("POPULARITY: {:.0}", self.popularity))
+                    ]
+                    .width(Length::FillPortion(1)),
+                    column![
+                        row![
+                            iced::widget::container(row![
+                                button("↑")
+                                    .style(theme::Button::Secondary)
+                                    .on_press(BookmarkMessage::IncrE)
+                                    .padding(10),
+                                text(format!(
+                                    "E {} · S {}",
+                                    self.current_episode, self.current_season
+                                ))
+                                .vertical_alignment(Vertical::Bottom),
+                                button("↓")
+                                    .style(theme::Button::Secondary)
+                                    .padding(10)
+                                    .on_press(BookmarkMessage::DecrE)
+                            ])
+                            .width(Length::Fill)
+                            .align_x(Horizontal::Center),
+                            iced::widget::container(
+                                button("X")
+                                    .on_press(BookmarkMessage::Remove)
+                                    .padding(30)
+                                    .style(theme::Button::Secondary)
+                            )
+                            .align_x(Horizontal::Right),
+                        ]
+                        .width(Length::Fill)
+                        .align_items(Alignment::Center),
+                        text(&self.overview)
+                    ]
+                    .width(Length::FillPortion(5))
+                ],
+            ]
             .into()
         } else {
-            iced::widget::Space::with_width(Length::Fixed(10.)).into()
+            body.into()
+        }
+    }
+    fn picture_view(&self, width: Length) -> Element<BookmarkMessage> {
+        if let Poster::Image(img) = &self.poster {
+            image::viewer(img.clone())
+                .width(Length::Fixed(500.))
+                .height(Length::Fixed(200.))
+                .into()
+        } else {
+            println!("IMGOSf");
+            iced::widget::text("IMG").width(width).into()
         }
     }
     fn link_view(&self) -> Element<BookmarkMessage> {

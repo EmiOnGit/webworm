@@ -1,5 +1,6 @@
 use iced::font::{self};
 
+use iced::widget::image::Handle;
 use iced::widget::{container, text};
 use iced::{alignment, window, Color, Element, Length};
 
@@ -18,6 +19,7 @@ pub enum Message {
     InputChanged(String),
     ExecuteRequest(RequestType),
     RequestResponse(Option<String>, RequestType),
+    RequestPoster(Option<Handle>, usize),
     FilterChanged(Filter),
     MovieMessage(usize, MovieMessage),
     BookmarkMessage(usize, BookmarkMessage),
@@ -49,6 +51,7 @@ pub fn empty_message(message: &str) -> Element<'_, Message> {
 }
 #[derive(Clone, Debug)]
 pub enum BookmarkMessage {
+    ToggleDetails,
     Remove,
     IncrE,
     IncrS,

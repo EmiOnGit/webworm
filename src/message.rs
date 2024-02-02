@@ -6,6 +6,7 @@ use iced::{alignment, window, Color, Element, Length};
 
 use crate::filter::Filter;
 use crate::movie::MovieMessage;
+use crate::movie_details::MovieDetails;
 use crate::save::{LoadError, SaveError, SavedState};
 use crate::tmdb::RequestType;
 
@@ -53,11 +54,11 @@ pub fn empty_message(message: &str) -> Element<'_, Message> {
 pub enum BookmarkMessage {
     ToggleDetails,
     Remove,
-    IncrE,
+    IncrE(Option<MovieDetails>),
     IncrS,
     DecrE,
     DecrS,
     LinkInputChanged(String),
     LinkInputSubmit,
-    LinkToClipboard,
+    LinkToClipboard(Option<MovieDetails>),
 }

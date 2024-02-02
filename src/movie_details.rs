@@ -19,10 +19,10 @@ impl MovieDetails {
             last.clone()
         } else if let Some(next) = &self.next_episode_to_air {
             let mut last = next.clone();
-            if last.episode_number > 0 {
+            if last.episode_number > 1 {
                 last.episode_number -= 1;
                 last
-            } else if last.season_number == 0 {
+            } else if last.season_number == 1 {
                 last
             } else {
                 last.season_number -= 1;

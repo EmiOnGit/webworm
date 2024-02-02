@@ -60,7 +60,14 @@ impl From<&TmdbMovie> for Bookmark {
 impl Bookmark {
     pub fn apply(&mut self, action: BookmarkMessage) -> Command<Message> {
         match action {
-            BookmarkMessage::IncrE => self.current_episode += 1,
+            BookmarkMessage::IncrE(details) => {
+                if let Some(details) = details {
+                    self.current_episode =
+                        (self.current_episode + 1).min(details.last_published().episode_number)
+                } else {
+                    self.current_episode += 1
+                }
+            }
             BookmarkMessage::IncrS => self.current_season += 1,
             BookmarkMessage::DecrE => self.current_episode = (self.current_episode - 1).max(1),
             BookmarkMessage::DecrS => self.current_season = (self.current_season - 1).max(1),
@@ -79,14 +86,16 @@ impl Bookmark {
                     }
                 }
             }
-            BookmarkMessage::LinkToClipboard => {
+            BookmarkMessage::LinkToClipboard(details) => {
                 let BookmarkLinkBox::Link(link) = &self.link else {
                     return Command::none();
                 };
                 let url = link.url(self.current_episode, self.current_season);
-                self.current_episode += 1;
                 info!("copied {} to clipboard", &url);
-                return clipboard::write::<Message>(url);
+                return Command::batch([
+                    self.apply(BookmarkMessage::IncrE(details)),
+                    clipboard::write::<Message>(url),
+                ]);
             }
             BookmarkMessage::Remove => {}
             BookmarkMessage::ToggleDetails => {
@@ -108,8 +117,10 @@ impl Bookmark {
                     row![
                         if let Some(details) = &details {
                             let left =
-                                details.last_published().episode_number - self.current_episode;
-                            if left != 0 {
+                                details.last_published().episode_number as i32 - self.current_episode as i32;
+                            if left < 0 {
+                                text(format!("Something weird happened. You are {} episodes ahead of the release", left.abs()))
+                            } else if left != 0 {
                                 text(format!(
                                     "LEFT: {}",
                                     details.last_published().episode_number - self.current_episode
@@ -135,7 +146,7 @@ impl Bookmark {
                     ]
                     .align_items(Alignment::Center)
                 ],],
-                self.link_view()
+                self.link_view(details)
             ]
             .width(Length::FillPortion(5)),
             button(if self.show_details { "↓" } else { "↑" })
@@ -160,7 +171,7 @@ impl Bookmark {
                             iced::widget::container(row![
                                 button("↑")
                                     .style(theme::Button::Secondary)
-                                    .on_press(BookmarkMessage::IncrE)
+                                    .on_press(BookmarkMessage::IncrE(details.map(|d| d.clone())))
                                     .padding(10),
                                 text(format!(
                                     "E {} · S {}",
@@ -201,14 +212,13 @@ impl Bookmark {
                 .height(Length::Fixed(200.))
                 .into()
         } else {
-            println!("IMGOSf");
             iced::widget::text("IMG").width(width).into()
         }
     }
-    fn link_view(&self) -> Element<BookmarkMessage> {
+    fn link_view(&self, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
         match &self.link {
             BookmarkLinkBox::Link(l) => iced::widget::button(l.string_link.as_str())
-                .on_press(BookmarkMessage::LinkToClipboard)
+                .on_press(BookmarkMessage::LinkToClipboard(details.map(|d| d.clone())))
                 .style(theme::Button::Secondary)
                 .width(Length::Fill)
                 .into(),

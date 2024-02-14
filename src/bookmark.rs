@@ -11,7 +11,6 @@ use crate::movie::TmdbMovie;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
-    pub id: usize,
     pub movie: TmdbMovie,
     pub current_episode: usize,
     pub current_season: usize,
@@ -31,7 +30,6 @@ pub enum Poster {
 impl From<&TmdbMovie> for Bookmark {
     fn from(movie: &TmdbMovie) -> Self {
         Self {
-            id: movie.id,
             movie: movie.clone(),
             current_episode: 1,
             current_season: 1,

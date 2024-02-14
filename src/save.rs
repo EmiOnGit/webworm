@@ -140,7 +140,9 @@ impl App {
         let iter_load_details = state
             .bookmarks
             .iter()
-            .map(|bookmark| RequestType::TvDetails { id: bookmark.id })
+            .map(|bookmark| RequestType::TvDetails {
+                id: bookmark.movie.id,
+            })
             .map(|req| {
                 Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
                     Message::ExecuteRequest(req)
@@ -150,7 +152,7 @@ impl App {
             .bookmarks
             .iter()
             .map(|bookmark| RequestType::Poster {
-                id: bookmark.id,
+                id: bookmark.movie.id,
                 path: bookmark.movie.poster_path.clone(),
             })
             .map(|req| {

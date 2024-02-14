@@ -1,4 +1,4 @@
-use crate::{bookmark::Bookmark, movie::TmdbMovie};
+use crate::movie::TmdbMovie;
 use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
@@ -78,15 +78,5 @@ impl TmdbConfig {
 }
 #[derive(Debug, Clone, Deserialize)]
 pub struct TmdbResponse {
-    results: Vec<TmdbMovie>,
-}
-impl TmdbResponse {
-    /// Returns the movies from the `TmdbRequest`.
-    /// The bookmarks are used to set the `is_bookmark` flag of the corresponding movie.
-    pub fn movies(&mut self, bookmarks: &[Bookmark]) -> &Vec<TmdbMovie> {
-        for movie in &mut self.results {
-            movie.set_bookmark(bookmarks);
-        }
-        &self.results
-    }
+    pub results: Vec<TmdbMovie>,
 }

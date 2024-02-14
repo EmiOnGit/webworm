@@ -101,7 +101,11 @@ impl Application for App {
                     }
                     Message::RequestPoster(handle, id) => {
                         if let Some(handle) = handle {
-                            let bookmark = state.bookmarks.iter_mut().find(|b| b.id == id).unwrap();
+                            let bookmark = state
+                                .bookmarks
+                                .iter_mut()
+                                .find(|b| b.movie.id == id)
+                                .unwrap();
                             bookmark.poster = Poster::Image(handle);
                         }
                         Command::none()
@@ -110,9 +114,9 @@ impl Application for App {
                         if let Some(text) = text {
                             match query {
                                 RequestType::TvSearch { .. } => {
-                                    let mut response: TmdbResponse =
+                                    let response: TmdbResponse =
                                         serde_json::from_str(&text).unwrap();
-                                    state.movies = response.movies(&state.bookmarks).clone();
+                                    state.movies = response.results;
                                 }
                                 RequestType::TvDetails { .. } => {
                                     let Ok(response) = serde_json::from_str::<MovieDetails>(&text)
@@ -141,9 +145,8 @@ impl Application for App {
                     }
                     Message::MovieMessage(i, MovieMessage::ToggleBookmark) => {
                         if let Some(movie) = state.movies.get_mut(i) {
-                            movie.update(MovieMessage::ToggleBookmark);
                             if let Some(index) =
-                                state.bookmarks.iter().position(|b| b.id == movie.id)
+                                state.bookmarks.iter().position(|b| b.movie.id == movie.id)
                             {
                                 state.bookmarks.remove(index);
                             } else {
@@ -240,11 +243,13 @@ impl Application for App {
                                             !bookmark.finished
                                         }
                                     })
-                                    .map(|bookmark| (bookmark, movie_details.get(&bookmark.id)))
+                                    .map(|bookmark| {
+                                        (bookmark, movie_details.get(&bookmark.movie.id))
+                                    })
                                     .enumerate()
                                     .map(|(i, (bookmark, details))| {
                                         (
-                                            bookmark.id,
+                                            bookmark.movie.id,
                                             bookmark.view(i, details).map(move |message| {
                                                 Message::BookmarkMessage(i, message)
                                             }),

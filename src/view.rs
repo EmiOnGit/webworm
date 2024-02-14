@@ -175,11 +175,7 @@ impl TmdbMovie {
             .spacing(20)
             .align_items(Alignment::Start),
         )
-        .style(if self.is_bookmark {
-            theme::Container::Box
-        } else {
-            theme::Container::Transparent
-        })
+        .style(theme::Container::Transparent)
         .width(Length::Fill)
         .padding(20.)
         .into()

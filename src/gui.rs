@@ -59,38 +59,7 @@ impl Application for App {
         match self {
             App::Loading => {
                 match message {
-                    Message::Loaded(Ok(state)) => {
-                        // set state to be loaded
-                        *self = App::Loaded(State {
-                            tmdb_config: state.tmdb_config,
-                            bookmarks: state.bookmarks.clone(),
-                            ..State::default()
-                        });
-                        // load new data for the bookmarks
-                        let iter_load_details = state
-                            .bookmarks
-                            .iter()
-                            .map(|bookmark| RequestType::TvDetails { id: bookmark.id })
-                            .map(|req| {
-                                Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
-                                    Message::ExecuteRequest(req)
-                                })
-                            });
-                        let iter_load_posters = state
-                            .bookmarks
-                            .iter()
-                            .map(|bookmark| RequestType::Poster {
-                                id: bookmark.id,
-                                path: bookmark.movie.poster_path.clone(),
-                            })
-                            .map(|req| {
-                                Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
-                                    Message::ExecuteRequest(req)
-                                })
-                            });
-
-                        return Command::batch(iter_load_details.chain(iter_load_posters));
-                    }
+                    Message::Loaded(Ok(state)) => return self.as_loaded(state),
                     Message::Loaded(Err(_)) => {
                         error!("Something went wrong with loading the app state. Default configuration is used");
                         *self = App::Loaded(State::default());
@@ -173,13 +142,12 @@ impl Application for App {
                     Message::MovieMessage(i, MovieMessage::ToggleBookmark) => {
                         if let Some(movie) = state.movies.get_mut(i) {
                             movie.update(MovieMessage::ToggleBookmark);
-                            let movie: &TmdbMovie = movie;
                             if let Some(index) =
                                 state.bookmarks.iter().position(|b| b.id == movie.id)
                             {
                                 state.bookmarks.remove(index);
                             } else {
-                                state.bookmarks.push(Bookmark::from(movie));
+                                state.bookmarks.push(Bookmark::from(&*movie));
                             }
                         }
                         Command::none()
@@ -235,21 +203,21 @@ impl Application for App {
             App::Loaded(State {
                 input_value,
                 filter,
-                movies: tasks,
+                movies,
                 movie_details,
                 bookmarks,
                 ..
             }) => {
                 let header = view_header();
                 let input = view_input(input_value);
-                let controls = view_controls(tasks, *filter);
+                let controls = view_controls(movies, *filter);
                 let body = match filter {
                     Filter::Search => {
-                        if tasks.is_empty() {
+                        if movies.is_empty() {
                             empty_message(filter.empty_message())
                         } else {
                             keyed_column(
-                                tasks
+                                movies
                                     .iter()
                                     .enumerate()
                                     .map(|(i, task)| (task.id, task.view(i))),
@@ -321,8 +289,8 @@ impl Application for App {
         })
     }
 }
-fn view_controls(tasks: &[TmdbMovie], current_filter: Filter) -> Element<Message> {
-    let tasks_left = tasks.len();
+fn view_controls(movies: &[TmdbMovie], current_filter: Filter) -> Element<Message> {
+    let movies_left = movies.len();
 
     let filter_button = |label, filter, current_filter| {
         let label = text(label);
@@ -338,8 +306,8 @@ fn view_controls(tasks: &[TmdbMovie], current_filter: Filter) -> Element<Message
 
     row![
         text(format!(
-            "{tasks_left} {} left",
-            if tasks_left == 1 { "task" } else { "tasks" }
+            "{movies_left} {} left",
+            if movies_left == 1 { "task" } else { "movies" }
         ))
         .width(Length::Fill),
         row![

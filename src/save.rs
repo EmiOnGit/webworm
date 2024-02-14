@@ -1,11 +1,17 @@
 use std::{fs::File, io::Write};
 
-use iced::widget::image::{self, Handle};
+use iced::{
+    widget::image::{self, Handle},
+    Command,
+};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
 use crate::{
     bookmark::Bookmark,
+    gui::App,
+    message::Message,
+    state::State,
     tmdb::{self, RequestType, TmdbConfig},
 };
 
@@ -120,5 +126,39 @@ pub async fn load_poster(id: usize, url: String, config: TmdbConfig) -> anyhow::
         File::create(path)?.write_all(&response)?;
         let handle = image::Handle::from_memory(response);
         Ok(handle)
+    }
+}
+impl App {
+    pub fn as_loaded(&mut self, state: SavedState) -> Command<Message> {
+        // set self to be loaded
+        *self = App::Loaded(State {
+            tmdb_config: state.tmdb_config,
+            bookmarks: state.bookmarks.clone(),
+            ..State::default()
+        });
+        // load new data for the bookmarks
+        let iter_load_details = state
+            .bookmarks
+            .iter()
+            .map(|bookmark| RequestType::TvDetails { id: bookmark.id })
+            .map(|req| {
+                Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
+                    Message::ExecuteRequest(req)
+                })
+            });
+        let iter_load_posters = state
+            .bookmarks
+            .iter()
+            .map(|bookmark| RequestType::Poster {
+                id: bookmark.id,
+                path: bookmark.movie.poster_path.clone(),
+            })
+            .map(|req| {
+                Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
+                    Message::ExecuteRequest(req)
+                })
+            });
+
+        Command::batch(iter_load_details.chain(iter_load_posters))
     }
 }

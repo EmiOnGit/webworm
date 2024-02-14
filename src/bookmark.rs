@@ -17,7 +17,7 @@ use crate::movie_details::MovieDetails;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
     pub id: usize,
-    movie: TmdbMovie,
+    pub movie: TmdbMovie,
     current_episode: usize,
     current_season: usize,
     link: BookmarkLinkBox,

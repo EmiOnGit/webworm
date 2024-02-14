@@ -6,6 +6,7 @@ pub mod message;
 pub mod movie;
 pub mod movie_details;
 pub mod save;
+pub mod state;
 pub mod tmdb;
 
 pub fn add(left: usize, right: usize) -> usize {

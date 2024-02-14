@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use crate::filter::Filter;
 use crate::movie::{icon, MovieMessage, TmdbMovie};
 use crate::movie_details::MovieDetails;
 use crate::save::{load_poster, SavedState};
-use crate::tmdb::{send_request, RequestType, TmdbConfig, TmdbResponse};
+use crate::state::{DebugState, State};
+use crate::tmdb::{send_request, RequestType, TmdbResponse};
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
 use iced::keyboard;
@@ -35,24 +34,6 @@ static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
 pub enum App {
     Loading,
     Loaded(State),
-}
-#[derive(Debug, Default)]
-pub struct State {
-    input_value: String,
-    filter: Filter,
-    movies: Vec<TmdbMovie>,
-    movie_details: HashMap<usize, MovieDetails>,
-    bookmarks: Vec<Bookmark>,
-    dirty: bool,
-    saving: bool,
-    tmdb_config: Option<TmdbConfig>,
-    debug: DebugState,
-}
-#[derive(Default, Debug, PartialEq)]
-pub enum DebugState {
-    Debug,
-    #[default]
-    Release,
 }
 impl Application for App {
     type Message = Message;
@@ -100,7 +81,7 @@ impl Application for App {
                             .iter()
                             .map(|bookmark| RequestType::Poster {
                                 id: bookmark.id,
-                                path: bookmark.poster_path.clone(),
+                                path: bookmark.movie.poster_path.clone(),
                             })
                             .map(|req| {
                                 Command::perform(async { Ok(()) }, |_: Result<(), ()>| {
@@ -241,26 +222,7 @@ impl Application for App {
                         Command::none()
                     }
                 };
-
-                if !saved {
-                    state.dirty = true;
-                }
-
-                let save = if state.dirty && !state.saving {
-                    state.dirty = false;
-                    state.saving = true;
-                    Command::perform(
-                        SavedState {
-                            bookmarks: state.bookmarks.clone(),
-                            // We ignore it anyway since we save it in a text file
-                            tmdb_config: None,
-                        }
-                        .save(),
-                        Message::Saved,
-                    )
-                } else {
-                    Command::none()
-                };
+                let save = state.save(saved);
 
                 Command::batch(vec![command, save])
             }

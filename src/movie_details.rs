@@ -8,8 +8,8 @@ pub struct MovieDetails {
     last_air_date: Option<String>,
     number_of_seasons: usize,
     number_of_episodes: usize,
-    pub last_episode_to_air: Option<Episode>,
-    pub next_episode_to_air: Option<Episode>,
+    last_episode_to_air: Option<Episode>,
+    next_episode_to_air: Option<Episode>,
 }
 impl MovieDetails {
     /// Tries to fetch the last published episode.

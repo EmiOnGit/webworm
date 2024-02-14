@@ -26,7 +26,6 @@ pub struct Bookmark {
     pub poster: Poster,
     #[serde(skip)]
     show_details: bool,
-    pub poster_path: String,
 }
 #[derive(Clone, Debug, Default)]
 pub enum Poster {
@@ -45,7 +44,6 @@ impl From<&TmdbMovie> for Bookmark {
             link: BookmarkLinkBox::default(),
             poster: Poster::None,
             show_details: false,
-            poster_path: movie.poster_path.clone(),
         }
     }
 }

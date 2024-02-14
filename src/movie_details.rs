@@ -32,7 +32,7 @@ impl MovieDetails {
         } else {
             Episode {
                 id: self.id,
-                air_date: self.last_air_date.clone().unwrap_or(String::new()),
+                air_date: self.last_air_date.clone().unwrap_or_default(),
                 episode_number: self.number_of_episodes,
                 name: "".to_owned(),
                 season_number: self.number_of_seasons,

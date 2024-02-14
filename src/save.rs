@@ -6,13 +6,11 @@ use tracing::error;
 
 use crate::{
     bookmark::Bookmark,
-    movie::TmdbMovie,
     tmdb::{self, RequestType, TmdbConfig},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
-    pub movies: Vec<TmdbMovie>,
     pub bookmarks: Vec<Bookmark>,
     #[serde(skip)]
     pub tmdb_config: Option<TmdbConfig>,
@@ -67,18 +65,6 @@ impl SavedState {
             .map_err(|_| LoadError::Format)
             .map_err(trace_io_error)
             .map(|state| state.with_tmdb(tmdb_config))
-            .map(|mut state| {
-                for bookmark in &state.bookmarks {
-                    if let Some(i) = state
-                        .movies
-                        .iter()
-                        .position(|movie| movie.id == bookmark.id)
-                    {
-                        state.movies[i].is_bookmark = true;
-                    }
-                }
-                state
-            })
     }
 
     pub async fn save(self) -> Result<(), SaveError> {
@@ -131,7 +117,7 @@ pub async fn load_poster(id: usize, url: String, config: TmdbConfig) -> anyhow::
     } else {
         let req = RequestType::Poster { id, path: url };
         let response = tmdb::send_byte_request(config.clone(), req).await?;
-        File::create(path)?.write(&response)?;
+        File::create(path)?.write_all(&response)?;
         let handle = image::Handle::from_memory(response);
         Ok(handle)
     }

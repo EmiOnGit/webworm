@@ -81,7 +81,6 @@ impl Application for App {
                     Message::Loaded(Ok(state)) => {
                         // set state to be loaded
                         *self = App::Loaded(State {
-                            movies: state.movies,
                             tmdb_config: state.tmdb_config,
                             bookmarks: state.bookmarks.clone(),
                             ..State::default()
@@ -250,10 +249,8 @@ impl Application for App {
                 let save = if state.dirty && !state.saving {
                     state.dirty = false;
                     state.saving = true;
-                    println!("save");
                     Command::perform(
                         SavedState {
-                            movies: state.movies.clone(),
                             bookmarks: state.bookmarks.clone(),
                             // We ignore it anyway since we save it in a text file
                             tmdb_config: None,

@@ -2,7 +2,7 @@ use crate::{bookmark::Bookmark, movie::TmdbMovie};
 use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing::warn;
 #[derive(Debug, Clone)]
 pub enum RequestType {
@@ -20,7 +20,7 @@ impl RequestType {
                 format!("search/tv?&query={query_cleaned}&")
             }
             RequestType::TvDetails { id } => format!("tv/{id}?"),
-            RequestType::Poster { id, path } => {
+            RequestType::Poster { id: _, path } => {
                 return format!("https://image.tmdb.org/t/p/w500/{path}")
             }
         };
@@ -76,12 +76,9 @@ impl TmdbConfig {
         })
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TmdbResponse {
-    page: usize,
     results: Vec<TmdbMovie>,
-    total_pages: usize,
-    total_results: usize,
 }
 impl TmdbResponse {
     /// Returns the movies from the `TmdbRequest`.

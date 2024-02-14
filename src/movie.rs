@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::bookmark::Bookmark;
 use crate::message::Message;
 use crate::tmdb::RequestType;
-#[derive(Debug, Clone, Serialize, Deserialize)]
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TmdbMovie {
     pub id: usize,
     pub genre_ids: Vec<usize>,

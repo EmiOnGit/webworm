@@ -17,15 +17,11 @@ use crate::movie_details::MovieDetails;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
     pub id: usize,
-    name: String,
+    movie: TmdbMovie,
     current_episode: usize,
     current_season: usize,
-    pub finished: bool,
-    overview: String,
-    popularity: f32,
-    vote_average: f32,
-    genre_ids: Vec<usize>,
     link: BookmarkLinkBox,
+    pub finished: bool,
     #[serde(skip)]
     pub poster: Poster,
     #[serde(skip)]
@@ -42,17 +38,13 @@ impl From<&TmdbMovie> for Bookmark {
     fn from(movie: &TmdbMovie) -> Self {
         Self {
             id: movie.id,
-            name: movie.name.clone(),
+            movie: movie.clone(),
             current_episode: 1,
             current_season: 1,
             finished: false,
             link: BookmarkLinkBox::default(),
             poster: Poster::None,
             show_details: false,
-            overview: movie.overview.clone(),
-            popularity: movie.popularity,
-            vote_average: movie.vote_average,
-            genre_ids: movie.genre_ids.clone(),
             poster_path: movie.poster_path.clone(),
         }
     }
@@ -109,7 +101,7 @@ impl Bookmark {
             self.picture_view(Length::FillPortion(3)),
             column![
                 row![column![
-                    text(self.name.as_str())
+                    text(self.movie.name.as_str())
                         .horizontal_alignment(Horizontal::Center)
                         .width(Length::FillPortion(1))
                         .size(FONT_SIZE_HEADER)
@@ -162,8 +154,8 @@ impl Bookmark {
                 body,
                 row![
                     column![
-                        text(format!("VOTE: {:.1}/10", self.vote_average)),
-                        text(format!("POPULARITY: {:.0}", self.popularity))
+                        text(format!("VOTE: {:.1}/10", self.movie.vote_average)),
+                        text(format!("POPULARITY: {:.0}", self.movie.popularity))
                     ]
                     .width(Length::FillPortion(1)),
                     column![
@@ -171,7 +163,7 @@ impl Bookmark {
                             iced::widget::container(row![
                                 button("↑")
                                     .style(theme::Button::Secondary)
-                                    .on_press(BookmarkMessage::IncrE(details.map(|d| d.clone())))
+                                    .on_press(BookmarkMessage::IncrE(details.cloned()))
                                     .padding(10),
                                 text(format!(
                                     "E {} · S {}",
@@ -195,7 +187,7 @@ impl Bookmark {
                         ]
                         .width(Length::Fill)
                         .align_items(Alignment::Center),
-                        text(&self.overview)
+                        text(&self.movie.overview)
                     ]
                     .width(Length::FillPortion(5))
                 ],
@@ -218,7 +210,7 @@ impl Bookmark {
     fn link_view(&self, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
         match &self.link {
             BookmarkLinkBox::Link(l) => iced::widget::button(l.string_link.as_str())
-                .on_press(BookmarkMessage::LinkToClipboard(details.map(|d| d.clone())))
+                .on_press(BookmarkMessage::LinkToClipboard(details.cloned()))
                 .style(theme::Button::Secondary)
                 .width(Length::Fill)
                 .into(),

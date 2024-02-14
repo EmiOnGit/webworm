@@ -1,5 +1,5 @@
 use crate::filter::Filter;
-use crate::movie::{icon, MovieMessage, TmdbMovie};
+use crate::movie::{MovieMessage, TmdbMovie};
 use crate::movie_details::MovieDetails;
 use crate::save::{load_poster, SavedState};
 use crate::state::{DebugState, State};
@@ -9,7 +9,7 @@ use iced::font::{self, Font};
 use iced::keyboard;
 use iced::theme::{self, Theme};
 use iced::widget::{
-    self, button, column, container, keyed_column, row, scrollable, text, text_input,
+    self, button, column, container, keyed_column, row, scrollable, text, text_input, Text,
 };
 use iced::window::{self};
 use iced::{Application, Element};
@@ -377,4 +377,10 @@ fn view_input(input: &str) -> Element<'static, Message> {
         .padding(15)
         .size(FONT_SIZE)
         .into()
+}
+pub fn icon(unicode: char) -> Text<'static> {
+    text(unicode.to_string())
+        .font(crate::gui::ICON_FONT)
+        .width(20)
+        .horizontal_alignment(alignment::Horizontal::Center)
 }

@@ -8,6 +8,7 @@ pub mod movie_details;
 pub mod save;
 pub mod state;
 pub mod tmdb;
+pub mod view;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

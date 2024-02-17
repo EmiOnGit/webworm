@@ -1,6 +1,6 @@
 use crate::filter::Filter;
 use crate::movie::{MovieMessage, TmdbMovie};
-use crate::movie_details::MovieDetails;
+use crate::movie_details::{Episode, MovieDetails};
 use crate::save::{load_poster, SavedState};
 use crate::state::{DebugState, State};
 use crate::tmdb::{send_request, RequestType, TmdbResponse};
@@ -16,7 +16,7 @@ use iced::{Application, Element};
 use iced::{Color, Command, Length, Subscription};
 use once_cell::sync::Lazy;
 use serde_json::Value;
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 use crate::bookmark::{Bookmark, Poster};
 use crate::message::{empty_message, loading_message, BookmarkMessage, Message};
@@ -78,7 +78,6 @@ impl Application for App {
                 let command = match message {
                     Message::InputChanged(value) => {
                         state.input_value = value;
-
                         Command::none()
                     }
                     Message::ExecuteRequest(request) => {
@@ -114,23 +113,41 @@ impl Application for App {
                         if let Some(text) = text {
                             match query {
                                 RequestType::TvSearch { .. } => {
-                                    let response: TmdbResponse =
-                                        serde_json::from_str(&text).unwrap();
-                                    state.movies = response.results;
+                                    let response: serde_json::Result<TmdbResponse> =
+                                        serde_json::from_str(&text);
+                                    match response {
+                                        Ok(response) => state.movies = response.results,
+
+                                        Err(e) => {
+                                            println!("{e:?}")
+                                        }
+                                    }
                                 }
                                 RequestType::TvDetails { .. } => {
-                                    let Ok(response) = serde_json::from_str::<MovieDetails>(&text)
+                                    let Ok(mut response) =
+                                        serde_json::from_str::<MovieDetails>(&text)
                                     else {
-                                        error!("failed with:");
+                                        error!("failed reading tv details with:");
                                         let res: Value = serde_json::from_str(&text).unwrap();
                                         let pretty = serde_json::to_string_pretty(&res).unwrap();
-                                        println!("{pretty}");
+                                        error!("{pretty}");
                                         panic!()
                                     };
                                     if state.debug == DebugState::Debug {
                                         let res: Value = serde_json::from_str(&text).unwrap();
                                         let pretty = serde_json::to_string_pretty(&res).unwrap();
-                                        println!("{pretty}");
+                                        info!("{pretty}");
+                                    }
+                                    response.fix_episode_formats();
+                                    if let Some(bookmark) = state
+                                        .bookmarks
+                                        .iter_mut()
+                                        .find(|bookmark| bookmark.movie.id == response.id)
+                                    {
+                                        if let Episode::Total(e) = &bookmark.current_episode {
+                                            bookmark.current_episode =
+                                                response.as_seasonal_episode(&e).into();
+                                        }
                                     }
                                     state.movie_details.insert(response.id, response);
                                 }

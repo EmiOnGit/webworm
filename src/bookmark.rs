@@ -2,18 +2,19 @@ use iced::widget::image;
 use iced::{clipboard, Command};
 
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::bookmark_link::BookmarkLink;
 
 use crate::message::{BookmarkMessage, Message};
 use crate::movie::TmdbMovie;
+use crate::movie_details::{Episode, TotalEpisode};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
     pub movie: TmdbMovie,
-    pub current_episode: usize,
-    pub current_season: usize,
+
+    pub current_episode: Episode,
     pub link: BookmarkLinkBox,
     pub finished: bool,
     #[serde(skip)]
@@ -31,8 +32,7 @@ impl From<&TmdbMovie> for Bookmark {
     fn from(movie: &TmdbMovie) -> Self {
         Self {
             movie: movie.clone(),
-            current_episode: 1,
-            current_season: 1,
+            current_episode: Episode::Total(TotalEpisode { episode: 1 }),
             finished: false,
             link: BookmarkLinkBox::default(),
             poster: Poster::None,
@@ -45,15 +45,13 @@ impl Bookmark {
         match action {
             BookmarkMessage::IncrE(details) => {
                 if let Some(details) = details {
-                    self.current_episode =
-                        (self.current_episode + 1).min(details.last_published().episode_number)
+                    self.current_episode = details.next_episode(self.current_episode.clone());
                 } else {
-                    self.current_episode += 1
+                    warn!("Can not incremend episode if movie details are not loaded");
                 }
             }
-            BookmarkMessage::IncrS => self.current_season += 1,
-            BookmarkMessage::DecrE => self.current_episode = (self.current_episode - 1).max(1),
-            BookmarkMessage::DecrS => self.current_season = (self.current_season - 1).max(1),
+            // BookmarkMessage::DecrE => self.current_episode = (self.current_episode - 1).max(1),
+            BookmarkMessage::DecrE => {}
             BookmarkMessage::LinkInputChanged(new_input) => {
                 if let BookmarkLinkBox::Input(s) = &mut self.link {
                     *s = new_input;
@@ -73,7 +71,31 @@ impl Bookmark {
                 let BookmarkLinkBox::Link(link) = &self.link else {
                     return Command::none();
                 };
-                let url = link.url(self.current_episode, self.current_season);
+                let url = match &self.current_episode {
+                    Episode::Seasonal(e) => {
+                        if link.has_season() {
+                            link.url(e.episode_number, e.season_number)
+                        } else {
+                            let Some(details) = &details else {
+                                error!("load details before copying to clipboard");
+                                return Command::none();
+                            };
+                            link.url(details.as_total_episodes(&e).episode, 1)
+                        }
+                    }
+                    Episode::Total(e) => {
+                        if link.has_season() {
+                            let Some(details) = &details else {
+                                error!("load details before copying to clipboard");
+                                return Command::none();
+                            };
+                            let e = details.as_seasonal_episode(&e);
+                            link.url(e.episode_number, e.season_number)
+                        } else {
+                            link.url(e.episode, 1)
+                        }
+                    }
+                };
                 info!("copied {} to clipboard", &url);
                 return Command::batch([
                     self.apply(BookmarkMessage::IncrE(details)),

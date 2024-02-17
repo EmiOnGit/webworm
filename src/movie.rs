@@ -9,7 +9,7 @@ pub struct TmdbMovie {
     original_name: String,
     pub name: String,
     pub popularity: f32,
-    pub poster_path: String,
+    pub poster_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]

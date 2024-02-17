@@ -49,6 +49,9 @@ impl BookmarkLink {
             })
             .collect()
     }
+    pub fn has_season(&self) -> bool {
+        self.link_parts.iter().any(|p| *p == LinkPart::Season)
+    }
     /// Creates a new Bookmark link.
     /// Panics if the link is not valid
     pub fn new(link: &str) -> Result<BookmarkLink, LinkError> {

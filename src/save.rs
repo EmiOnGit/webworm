@@ -151,9 +151,15 @@ impl App {
         let iter_load_posters = state
             .bookmarks
             .iter()
-            .map(|bookmark| RequestType::Poster {
-                id: bookmark.movie.id,
-                path: bookmark.movie.poster_path.clone(),
+            .filter_map(|bookmark| {
+                if let Some(poster_path) = &bookmark.movie.poster_path {
+                    Some(RequestType::Poster {
+                        id: bookmark.movie.id,
+                        path: poster_path.clone(),
+                    })
+                } else {
+                    None
+                }
             })
             .map(|req| {
                 Command::perform(async { Ok(()) }, |_: Result<(), ()>| {

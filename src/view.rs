@@ -8,7 +8,7 @@ use crate::bookmark::{Bookmark, BookmarkLinkBox, Poster};
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
 use crate::message::{BookmarkMessage, Message};
 use crate::movie::{MovieMessage, TmdbMovie};
-use crate::movie_details::MovieDetails;
+use crate::movie_details::{Episode, MovieDetails};
 use crate::tmdb::RequestType;
 
 impl Bookmark {
@@ -24,33 +24,22 @@ impl Bookmark {
                         .style(theme::Text::Default),
                     row![
                         if let Some(details) = &details {
-                            let left =
-                                details.last_published().episode_number as i32 - self.current_episode as i32;
-                            if left < 0 {
-                                text(format!("Something weird happened. You are {} episodes ahead of the release", left.abs()))
-                            } else if left != 0 {
-                                text(format!(
-                                    "LEFT: {}",
-                                    details.last_published().episode_number - self.current_episode
-                                ))
-                            } else {
-                                text("No episodes left to watch")
-                            }
+                            // let left =
+                            // details.last_published().episode_number as i32 - self.current_episode as i32;
+                            // if left < 0 {
+                            //     text(format!("Something weird happened. You are {} episodes ahead of the release", left.abs()))
+                            // } else if left != 0 {
+                            text(format!(
+                                "LEFT: {}",
+                                Into::<Episode>::into(details.last_published()).as_info_str()
+                            ))
                             .width(Length::FillPortion(1))
                         } else {
                             text("details not loaded").width(Length::FillPortion(1))
                         },
-                        text(if self.current_season > 1 {
-                            format!(
-                                "PROGRESS: {ep}E · {s}S",
-                                ep = self.current_episode,
-                                s = self.current_season
-                            )
-                        } else {
-                            format!("PROGRESS: {ep}E", ep = self.current_episode,)
-                        })
-                        .width(Length::FillPortion(1))
-                        .horizontal_alignment(Horizontal::Right)
+                        text(format!("PROGRESS: {}", self.current_episode.as_info_str()))
+                            .width(Length::FillPortion(1))
+                            .horizontal_alignment(Horizontal::Right)
                     ]
                     .align_items(Alignment::Center)
                 ],],
@@ -81,11 +70,8 @@ impl Bookmark {
                                     .style(theme::Button::Secondary)
                                     .on_press(BookmarkMessage::IncrE(details.cloned()))
                                     .padding(10),
-                                text(format!(
-                                    "E {} · S {}",
-                                    self.current_episode, self.current_season
-                                ))
-                                .vertical_alignment(Vertical::Bottom),
+                                text(format!("{}", self.current_episode.as_info_str()))
+                                    .vertical_alignment(Vertical::Bottom),
                                 button("↓")
                                     .style(theme::Button::Secondary)
                                     .padding(10)

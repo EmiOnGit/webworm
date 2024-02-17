@@ -58,7 +58,7 @@ impl Bookmark {
                     if let Ok(link) = link {
                         self.link = BookmarkLinkBox::Link(link);
                     } else {
-                        warn!("{:?} is not a valid link. Error {:?}", s, link)
+                        error!("{:?} is not a valid link. Error {:?}", s, link)
                     }
                 }
             }
@@ -101,6 +101,7 @@ impl Bookmark {
             BookmarkMessage::ToggleDetails => {
                 self.show_details = !self.show_details;
             }
+            BookmarkMessage::RemoveLink => self.link = BookmarkLinkBox::Input(String::new()),
         }
         Command::none()
     }

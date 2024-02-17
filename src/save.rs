@@ -91,7 +91,8 @@ impl SavedState {
 
         let json = serde_json::to_string_pretty(&self).map_err(|_| SaveError::Format)?;
 
-        let path = path();
+        let mut path = path();
+        path.push("state.json");
 
         if let Some(dir) = path.parent() {
             async_std::fs::create_dir_all(dir)
@@ -103,6 +104,7 @@ impl SavedState {
         {
             let mut file = async_std::fs::File::create(path)
                 .await
+                .map_err(trace_io_error)
                 .map_err(|_| SaveError::File)
                 .map_err(trace_io_error)?;
 
@@ -113,7 +115,7 @@ impl SavedState {
         }
 
         // This is a simple way to save at most once every couple seconds
-        async_std::task::sleep(std::time::Duration::from_secs(2)).await;
+        async_std::task::sleep(std::time::Duration::from_secs(5)).await;
 
         Ok(())
     }

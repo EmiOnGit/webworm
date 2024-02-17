@@ -57,6 +57,7 @@ pub enum BookmarkMessage {
     IncrE(Option<MovieDetails>),
     DecrE,
     LinkInputChanged(String),
+    RemoveLink,
     LinkInputSubmit,
     LinkToClipboard(Option<MovieDetails>),
 }

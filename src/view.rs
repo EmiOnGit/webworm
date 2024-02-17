@@ -79,6 +79,13 @@ impl Bookmark {
                             .width(Length::Fill)
                             .align_x(Horizontal::Center),
                             iced::widget::container(
+                                button("---")
+                                    .on_press(BookmarkMessage::RemoveLink)
+                                    .padding(30)
+                                    .style(theme::Button::Secondary)
+                            )
+                            .align_x(Horizontal::Right),
+                            iced::widget::container(
                                 button("X")
                                     .on_press(BookmarkMessage::Remove)
                                     .padding(30)

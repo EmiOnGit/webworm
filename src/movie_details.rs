@@ -40,10 +40,7 @@ impl MovieDetails {
                     .iter()
                     .filter(|s| s.season_number < last_episode_to_air.season_number)
                     .filter(|s| !s.name.contains("Extras") && !s.name.contains("Specials"))
-                    .map(|s| {
-                        println!("s {:?}", s.name);
-                        s.episode_count
-                    })
+                    .map(|s| s.episode_count)
                     .sum();
                 let Some(episode_number) = last_episode_to_air
                     .episode_number

@@ -133,6 +133,16 @@ impl Application for App {
                                             Message::ExecuteRequest(RequestType::TvDetails { id })
                                         });
                                     cmds.push(cmd);
+                                    if let Some(path) = movie.poster_path.clone() {
+                                        let cmd: Command<Message> =
+                                            Command::perform(async { () }, move |_: ()| {
+                                                Message::ExecuteRequest(RequestType::Poster {
+                                                    id,
+                                                    path,
+                                                })
+                                            });
+                                        cmds.push(cmd);
+                                    }
                                 }
                                 Command::batch(cmds)
                             }

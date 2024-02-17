@@ -56,7 +56,6 @@ pub async fn send_byte_request(config: TmdbConfig, request: RequestType) -> Resu
 #[derive(Clone)]
 pub struct TmdbConfig {
     token: String,
-    _key: String,
 }
 impl fmt::Debug for TmdbConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -64,15 +63,14 @@ impl fmt::Debug for TmdbConfig {
     }
 }
 impl TmdbConfig {
-    pub async fn new() -> Result<TmdbConfig> {
-        let content = async_std::fs::read_to_string("cred.md").await?;
+    pub fn new(content: &str) -> Option<TmdbConfig> {
+        // let content = async_std::fs::read_to_string("cred.md").await?;
         let lines: Vec<&str> = content
             .lines()
             .filter(|line| !line.starts_with('#'))
             .collect();
-        Ok(TmdbConfig {
+        Some(TmdbConfig {
             token: lines[0].to_owned(),
-            _key: lines[1].to_owned(),
         })
     }
 }

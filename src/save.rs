@@ -35,38 +35,51 @@ pub enum SaveError {
     Format,
 }
 
+fn path() -> std::path::PathBuf {
+    if let Some(project_dirs) = directories_next::ProjectDirs::from("", "", "Webworm") {
+        project_dirs.data_dir().into()
+    } else {
+        std::env::current_dir().unwrap_or_default()
+    }
+}
 impl SavedState {
     fn with_tmdb(mut self, tmdb_config: Option<TmdbConfig>) -> Self {
         self.tmdb_config = tmdb_config;
         self
     }
-    fn path() -> std::path::PathBuf {
-        let mut path =
-            if let Some(project_dirs) = directories_next::ProjectDirs::from("", "", "Webworm") {
-                project_dirs.data_dir().into()
-            } else {
-                std::env::current_dir().unwrap_or_default()
-            };
-
-        path.push("state.json");
-
-        path
-    }
     pub async fn load() -> Result<SavedState, LoadError> {
         use async_std::prelude::*;
 
         let mut contents = String::new();
+        let mut conf_contents = String::new();
+        let path = path();
+        let mut state_path = path.clone();
+        state_path.push("state.json");
+        let mut conf_path = path.clone();
+        conf_path.push("cred");
 
-        let mut file = async_std::fs::File::open(Self::path())
+        let mut state_file = async_std::fs::File::open(state_path)
             .await
             .map_err(|_| LoadError::File)
             .map_err(trace_io_error)?;
 
-        file.read_to_string(&mut contents)
+        state_file
+            .read_to_string(&mut contents)
             .await
             .map_err(|_| LoadError::File)
             .map_err(trace_io_error)?;
-        let tmdb_config = TmdbConfig::new().await.ok();
+        let mut cred_file = async_std::fs::File::open(conf_path)
+            .await
+            .map_err(|_| LoadError::File)
+            .map_err(trace_io_error)?;
+
+        cred_file
+            .read_to_string(&mut conf_contents)
+            .await
+            .map_err(|_| LoadError::File)
+            .map_err(trace_io_error)?;
+
+        let tmdb_config = TmdbConfig::new(&conf_contents);
         serde_json::from_str::<SavedState>(&contents)
             .map_err(|_| LoadError::Format)
             .map_err(trace_io_error)
@@ -78,7 +91,7 @@ impl SavedState {
 
         let json = serde_json::to_string_pretty(&self).map_err(|_| SaveError::Format)?;
 
-        let path = Self::path();
+        let path = path();
 
         if let Some(dir) = path.parent() {
             async_std::fs::create_dir_all(dir)
@@ -110,11 +123,8 @@ fn trace_io_error<T: std::fmt::Debug>(t: T) -> T {
     t
 }
 pub async fn load_poster(id: usize, url: String, config: TmdbConfig) -> anyhow::Result<Handle> {
-    let mut path = if let Some(dirs) = directories_next::ProjectDirs::from("", "", "Webworm") {
-        dirs.data_dir().into()
-    } else {
-        std::env::current_dir().unwrap_or_default()
-    };
+    let mut path = path();
+    path.push("posters");
     path.push(format!("{}.png", id));
     if path.exists() {
         let bytes = async_std::fs::read(path).await?;

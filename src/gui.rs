@@ -100,12 +100,8 @@ impl Application for App {
                     }
                     Message::RequestPoster(handle, id) => {
                         if let Some(handle) = handle {
-                            let bookmark = state
-                                .bookmarks
-                                .iter_mut()
-                                .find(|b| b.movie.id == id)
-                                .unwrap();
-                            bookmark.poster = Poster::Image(handle);
+                            println!("insert {id}");
+                            state.movie_posters.insert(id, Poster::Image(handle));
                         }
                         Command::none()
                     }
@@ -246,6 +242,7 @@ impl Application for App {
                 filter,
                 movies,
                 movie_details,
+                movie_posters,
                 bookmarks,
                 ..
             }) => {
@@ -257,12 +254,9 @@ impl Application for App {
                         if movies.is_empty() {
                             empty_message(filter.empty_message())
                         } else {
-                            keyed_column(
-                                movies
-                                    .iter()
-                                    .enumerate()
-                                    .map(|(i, task)| (task.id, task.view(i))),
-                            )
+                            keyed_column(movies.iter().enumerate().map(|(i, task)| {
+                                (task.id, task.view(i, movie_posters.get(&task.id)))
+                            }))
                             .spacing(10)
                             .into()
                         }
@@ -288,9 +282,15 @@ impl Application for App {
                                     .map(|(i, (bookmark, details))| {
                                         (
                                             bookmark.movie.id,
-                                            bookmark.view(i, details).map(move |message| {
-                                                Message::BookmarkMessage(i, message)
-                                            }),
+                                            bookmark
+                                                .view(
+                                                    i,
+                                                    details,
+                                                    movie_posters.get(&bookmark.movie.id),
+                                                )
+                                                .map(move |message| {
+                                                    Message::BookmarkMessage(i, message)
+                                                }),
                                         )
                                     }),
                             )

@@ -9,7 +9,7 @@ use crate::movie::TmdbMovie;
 use crate::movie_details::MovieDetails;
 use crate::tmdb::TmdbConfig;
 
-use crate::bookmark::Bookmark;
+use crate::bookmark::{Bookmark, Poster};
 
 #[derive(Debug, Default)]
 pub struct State {
@@ -17,6 +17,7 @@ pub struct State {
     pub filter: Filter,
     pub movies: Vec<TmdbMovie>,
     pub movie_details: HashMap<usize, MovieDetails>,
+    pub movie_posters: HashMap<usize, Poster>,
     pub bookmarks: Vec<Bookmark>,
     pub dirty: bool,
     pub saving: bool,

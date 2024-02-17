@@ -18,15 +18,11 @@ pub struct Bookmark {
     pub link: BookmarkLinkBox,
     pub finished: bool,
     #[serde(skip)]
-    pub poster: Poster,
-    #[serde(skip)]
     pub show_details: bool,
 }
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub enum Poster {
     Image(image::Handle),
-    #[default]
-    None,
 }
 impl From<&TmdbMovie> for Bookmark {
     fn from(movie: &TmdbMovie) -> Self {
@@ -35,7 +31,6 @@ impl From<&TmdbMovie> for Bookmark {
             current_episode: Episode::Total(TotalEpisode { episode: 1 }),
             finished: false,
             link: BookmarkLinkBox::default(),
-            poster: Poster::None,
             show_details: false,
         }
     }

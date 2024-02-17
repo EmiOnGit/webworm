@@ -13,19 +13,26 @@ pub struct MovieDetails {
     next_episode_to_air: Option<SeasonEpisode>,
 }
 impl MovieDetails {
-    /// Sometimes shows encode the `SeasonEpisode` to not have resetting episodes counts
-    /// We have to check that and fix if needed as our calculations can not handle both formats
+    /// Sometimes shows encode the `SeasonEpisode` to not have resetting episodes counts.
+    /// We have to check that and fix if needed as our calculations can not handle both formats.
     pub fn fix_episode_formats(&mut self) {
         if self.seasons.len() < 2 {
             return;
         }
         if let Some(last_episode_to_air) = &mut self.last_episode_to_air {
-            let last_season = self.seasons.last().unwrap();
-            if last_season.episode_count < last_episode_to_air.episode_number {
+            let Some(current_season) = self
+                .seasons
+                .iter()
+                .find(|season| season.season_number == last_episode_to_air.season_number)
+            else {
+                panic!("season for last_episode not found");
+            };
+
+            if current_season.episode_count < last_episode_to_air.episode_number {
                 info!(
                     "movie {} seems to have invalid episode formats. The season should only have {} episodes, but the last episode is {} ",
                     self.id,
-                    last_season.episode_count,
+                    current_season.episode_count,
                     last_episode_to_air.episode_number
                 );
                 let episodes_before_season: usize = self
@@ -38,17 +45,29 @@ impl MovieDetails {
                         s.episode_count
                     })
                     .sum();
-                last_episode_to_air.episode_number =
-                    last_episode_to_air.episode_number - episodes_before_season;
+                let Some(episode_number) = last_episode_to_air
+                    .episode_number
+                    .checked_sub(episodes_before_season)
+                else {
+                    error!("last_episode_to_air: {last_episode_to_air:?}, episodes_before_season: {episodes_before_season}, seasons: {:?}", self.seasons);
+                    panic!()
+                };
+                last_episode_to_air.episode_number = episode_number;
             }
         }
         if let Some(next_episode_to_air) = &mut self.next_episode_to_air {
-            let last_season = self.seasons.last().unwrap();
-            if last_season.episode_count < next_episode_to_air.episode_number {
+            let Some(current_season) = self
+                .seasons
+                .iter()
+                .find(|season| season.season_number == next_episode_to_air.season_number)
+            else {
+                panic!("season for last_episode not found");
+            };
+            if current_season.episode_count < next_episode_to_air.episode_number {
                 info!(
                     "movie {} seems to have invalid episode formats. The season should only have {} episodes, but the next episode is {} ",
                     self.id,
-                    last_season.episode_count,
+                    current_season.episode_count,
                     next_episode_to_air.episode_number
                 );
                 let episodes_before_season: usize = self

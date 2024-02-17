@@ -9,12 +9,16 @@ use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
 use crate::message::{BookmarkMessage, Message};
 use crate::movie::{MovieMessage, TmdbMovie};
 use crate::movie_details::{Episode, MovieDetails};
-use crate::tmdb::RequestType;
 
 impl Bookmark {
-    pub fn view(&self, _i: usize, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
+    pub fn view<'a>(
+        &'a self,
+        _i: usize,
+        details: Option<&MovieDetails>,
+        poster: Option<&'a Poster>,
+    ) -> Element<BookmarkMessage> {
         let body = row![
-            self.picture_view(Length::FillPortion(3)),
+            picture_view(poster, Length::FillPortion(3)),
             column![
                 row![column![
                     text(self.movie.name.as_str())
@@ -24,13 +28,8 @@ impl Bookmark {
                         .style(theme::Text::Default),
                     row![
                         if let Some(details) = &details {
-                            // let left =
-                            // details.last_published().episode_number as i32 - self.current_episode as i32;
-                            // if left < 0 {
-                            //     text(format!("Something weird happened. You are {} episodes ahead of the release", left.abs()))
-                            // } else if left != 0 {
                             text(format!(
-                                "LEFT: {}",
+                                "LATEST: {}",
                                 Into::<Episode>::into(details.last_published()).as_info_str()
                             ))
                             .width(Length::FillPortion(1))
@@ -99,16 +98,6 @@ impl Bookmark {
             body.into()
         }
     }
-    fn picture_view(&self, width: Length) -> Element<BookmarkMessage> {
-        if let Poster::Image(img) = &self.poster {
-            image::viewer(img.clone())
-                .width(Length::Fixed(500.))
-                .height(Length::Fixed(200.))
-                .into()
-        } else {
-            iced::widget::text("IMG").width(width).into()
-        }
-    }
     fn link_view(&self, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
         match &self.link {
             BookmarkLinkBox::Link(l) => iced::widget::button(l.string_link.as_str())
@@ -120,6 +109,7 @@ impl Bookmark {
                 .id(INPUT_LINK_ID.clone())
                 .on_input(BookmarkMessage::LinkInputChanged)
                 .on_submit(BookmarkMessage::LinkInputSubmit)
+                .width(Length::Fill)
                 .padding(15)
                 .size(FONT_SIZE)
                 .into(),
@@ -127,7 +117,7 @@ impl Bookmark {
     }
 }
 impl TmdbMovie {
-    pub fn view(&self, i: usize) -> Element<Message> {
+    pub fn view<'a>(&'a self, i: usize, poster: Option<&'a Poster>) -> Element<Message> {
         let info_column = column![
             text(self.name.as_str()).style(theme::Text::Default),
             text(format!("Rating: {0}%", self.rating())),
@@ -138,22 +128,16 @@ impl TmdbMovie {
             .take(30)
             .collect::<Vec<&str>>()
             .join(" ");
-
         iced::widget::container(
             row![
+                picture_view(poster, Length::FillPortion(2))
+                    .map(move |bookmark_mess| Message::BookmarkMessage(i, bookmark_mess)),
                 info_column.width(Length::FillPortion(2)),
                 text(description + "...")
                     .width(Length::FillPortion(6))
                     .style(theme::Text::Default),
                 button(icon('✍'))
                     .on_press(Message::MovieMessage(i, MovieMessage::ToggleBookmark))
-                    .padding(10)
-                    .width(Length::FillPortion(1))
-                    .style(theme::Button::Text),
-                button(text("details"))
-                    .on_press(Message::ExecuteRequest(RequestType::TvDetails {
-                        id: self.id
-                    }))
                     .padding(10)
                     .width(Length::FillPortion(1))
                     .style(theme::Button::Text),
@@ -165,5 +149,15 @@ impl TmdbMovie {
         .width(Length::Fill)
         .padding(20.)
         .into()
+    }
+}
+fn picture_view(poster: Option<&Poster>, width: Length) -> Element<BookmarkMessage> {
+    if let Some(Poster::Image(img)) = &poster {
+        image::viewer(img.clone())
+            .width(Length::Fixed(500.))
+            .height(Length::Fixed(200.))
+            .into()
+    } else {
+        iced::widget::text("IMG").width(width).into()
     }
 }

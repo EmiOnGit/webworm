@@ -110,51 +110,62 @@ impl Application for App {
                         Command::none()
                     }
                     Message::RequestResponse(text, query) => {
-                        if let Some(text) = text {
-                            match query {
-                                RequestType::TvSearch { .. } => {
-                                    let response: serde_json::Result<TmdbResponse> =
-                                        serde_json::from_str(&text);
-                                    match response {
-                                        Ok(response) => state.movies = response.results,
+                        let Some(text) = text else {
+                            return Command::none();
+                        };
+                        match query {
+                            RequestType::TvSearch { .. } => {
+                                let response: serde_json::Result<TmdbResponse> =
+                                    serde_json::from_str(&text);
+                                match response {
+                                    Ok(response) => state.movies = response.results,
 
-                                        Err(e) => {
-                                            println!("{e:?}")
-                                        }
+                                    Err(e) => {
+                                        error!("{e:?}");
+                                        return Command::none();
                                     }
                                 }
-                                RequestType::TvDetails { .. } => {
-                                    let Ok(mut response) =
-                                        serde_json::from_str::<MovieDetails>(&text)
-                                    else {
-                                        error!("failed reading tv details with:");
-                                        let res: Value = serde_json::from_str(&text).unwrap();
-                                        let pretty = serde_json::to_string_pretty(&res).unwrap();
-                                        error!("{pretty}");
-                                        panic!()
-                                    };
-                                    if state.debug == DebugState::Debug {
-                                        let res: Value = serde_json::from_str(&text).unwrap();
-                                        let pretty = serde_json::to_string_pretty(&res).unwrap();
-                                        info!("{pretty}");
-                                    }
-                                    response.fix_episode_formats();
-                                    if let Some(bookmark) = state
-                                        .bookmarks
-                                        .iter_mut()
-                                        .find(|bookmark| bookmark.movie.id == response.id)
-                                    {
-                                        if let Episode::Total(e) = &bookmark.current_episode {
-                                            bookmark.current_episode =
-                                                response.as_seasonal_episode(&e).into();
-                                        }
-                                    }
-                                    state.movie_details.insert(response.id, response);
+                                let mut cmds = Vec::new();
+                                for movie in &state.movies {
+                                    let id = movie.id;
+                                    let cmd: Command<Message> =
+                                        Command::perform(async { () }, move |_: ()| {
+                                            Message::ExecuteRequest(RequestType::TvDetails { id })
+                                        });
+                                    cmds.push(cmd);
                                 }
-                                RequestType::Poster { id: _, path: _ } => {}
+                                Command::batch(cmds)
                             }
+                            RequestType::TvDetails { .. } => {
+                                let Ok(mut response) = serde_json::from_str::<MovieDetails>(&text)
+                                else {
+                                    error!("failed reading tv details with:");
+                                    let res: Value = serde_json::from_str(&text).unwrap();
+                                    let pretty = serde_json::to_string_pretty(&res).unwrap();
+                                    error!("{pretty}");
+                                    panic!()
+                                };
+                                if state.debug == DebugState::Debug {
+                                    let res: Value = serde_json::from_str(&text).unwrap();
+                                    let pretty = serde_json::to_string_pretty(&res).unwrap();
+                                    info!("{pretty}");
+                                }
+                                response.fix_episode_formats();
+                                if let Some(bookmark) = state
+                                    .bookmarks
+                                    .iter_mut()
+                                    .find(|bookmark| bookmark.movie.id == response.id)
+                                {
+                                    if let Episode::Total(e) = &bookmark.current_episode {
+                                        bookmark.current_episode =
+                                            response.as_seasonal_episode(&e).into();
+                                    }
+                                }
+                                state.movie_details.insert(response.id, response);
+                                Command::none()
+                            }
+                            RequestType::Poster { id: _, path: _ } => Command::none(),
                         }
-                        Command::none()
                     }
                     Message::FilterChanged(filter) => {
                         state.filter = filter;

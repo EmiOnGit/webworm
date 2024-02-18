@@ -2,7 +2,7 @@ use crate::filter::Filter;
 use crate::movie::{MovieMessage, TmdbMovie};
 use crate::movie_details::{Episode, MovieDetails};
 use crate::save::{load_poster, SavedState};
-use crate::state::{DebugState, State};
+use crate::state::State;
 use crate::tmdb::{send_request, RequestType, TmdbResponse};
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
@@ -15,8 +15,8 @@ use iced::window::{self};
 use iced::{Application, Element};
 use iced::{Color, Command, Length, Subscription};
 use once_cell::sync::Lazy;
-use serde_json::Value;
-use tracing::{error, info, warn};
+use serde_json::{from_value, Value};
+use tracing::{debug, error, info, warn};
 
 use crate::bookmark::{Bookmark, Poster};
 use crate::message::{empty_message, loading_message, BookmarkMessage, Message};
@@ -100,7 +100,7 @@ impl Application for App {
                     }
                     Message::RequestPoster(handle, id) => {
                         if let Some(handle) = handle {
-                            println!("insert {id}");
+                            debug!("insert movie poster with {id}");
                             state.movie_posters.insert(id, Poster::Image(handle));
                         }
                         Command::none()
@@ -143,7 +143,13 @@ impl Application for App {
                                 Command::batch(cmds)
                             }
                             RequestType::TvDetails { .. } => {
-                                let Ok(mut response) = serde_json::from_str::<MovieDetails>(&text)
+                                let res: Value = serde_json::from_str(&text).unwrap();
+                                debug!(
+                                    "{pretty}",
+                                    pretty = serde_json::to_string_pretty(&res).unwrap()
+                                );
+                                let Ok(mut response): serde_json::Result<MovieDetails> =
+                                    from_value(res)
                                 else {
                                     error!("failed reading tv details with:");
                                     let res: Value = serde_json::from_str(&text).unwrap();
@@ -151,11 +157,6 @@ impl Application for App {
                                     error!("{pretty}");
                                     panic!()
                                 };
-                                if state.debug == DebugState::Debug {
-                                    let res: Value = serde_json::from_str(&text).unwrap();
-                                    let pretty = serde_json::to_string_pretty(&res).unwrap();
-                                    info!("{pretty}");
-                                }
                                 response.fix_episode_formats();
                                 if let Some(bookmark) = state
                                     .bookmarks
@@ -166,6 +167,18 @@ impl Application for App {
                                         bookmark.current_episode =
                                             response.as_seasonal_episode(&e).into();
                                     }
+                                    if bookmark.finished {
+                                        let next =
+                                            response.next_episode(bookmark.current_episode.clone());
+                                        if next != bookmark.current_episode {
+                                            info!(
+                                                "found new episode for {:?}. Reset finished state",
+                                                bookmark
+                                            );
+                                            bookmark.finished = false;
+                                            bookmark.current_episode = next;
+                                        }
+                                    }
                                 }
                                 state.movie_details.insert(response.id, response);
                                 Command::none()
@@ -174,6 +187,7 @@ impl Application for App {
                         }
                     }
                     Message::FilterChanged(filter) => {
+                        debug!("changed filter from {:?} to {:?}", state.filter, filter);
                         state.filter = filter;
                         Command::none()
                     }
@@ -182,8 +196,10 @@ impl Application for App {
                             if let Some(index) =
                                 state.bookmarks.iter().position(|b| b.movie.id == movie.id)
                             {
+                                debug!("toggle(remove) bookmark {:?}", &state.bookmarks[i]);
                                 state.bookmarks.remove(index);
                             } else {
+                                debug!("toggle(add) bookmark from {:?}", &movie);
                                 state.bookmarks.push(Bookmark::from(&*movie));
                             }
                         }
@@ -191,6 +207,7 @@ impl Application for App {
                     }
                     Message::BookmarkMessage(i, BookmarkMessage::Remove) => {
                         if i < state.bookmarks.len() {
+                            debug!("remove bookmark {:?}", &state.bookmarks[i]);
                             state.bookmarks.remove(i);
                         } else {
                             warn!("tried to remove bookmark at place {}, but there are only {} bookmarks", i + 1, state.bookmarks.len() + 1)
@@ -201,6 +218,7 @@ impl Application for App {
                         if let Some(bookmark) = state.bookmarks.get_mut(i) {
                             bookmark.apply(message)
                         } else {
+                            warn!("bookmark message received, that couldn't be applied. Mes: {message:?} Index: {i} Bookmarks: {bookmarks:?}",message=message, i=i,bookmarks=&state.bookmarks);
                             Command::none()
                         }
                     }
@@ -268,18 +286,18 @@ impl Application for App {
                             keyed_column(
                                 bookmarks
                                     .iter()
-                                    .filter(|bookmark| {
+                                    .enumerate()
+                                    .filter(|(_i, bookmark)| {
                                         if Filter::Completed == *filter {
                                             bookmark.finished
                                         } else {
                                             !bookmark.finished
                                         }
                                     })
-                                    .map(|bookmark| {
-                                        (bookmark, movie_details.get(&bookmark.movie.id))
+                                    .map(|(i, bookmark)| {
+                                        (i, bookmark, movie_details.get(&bookmark.movie.id))
                                     })
-                                    .enumerate()
-                                    .map(|(i, (bookmark, details))| {
+                                    .map(|(i, bookmark, details)| {
                                         (
                                             bookmark.movie.id,
                                             bookmark

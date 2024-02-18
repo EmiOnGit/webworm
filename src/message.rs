@@ -55,7 +55,7 @@ pub enum BookmarkMessage {
     ToggleDetails,
     Remove,
     IncrE(Option<MovieDetails>),
-    DecrE,
+    DecrE(Option<MovieDetails>),
     LinkInputChanged(String),
     RemoveLink,
     LinkInputSubmit,

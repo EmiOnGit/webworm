@@ -2,7 +2,7 @@ use iced::widget::image;
 use iced::{clipboard, Command};
 
 use serde::{Deserialize, Serialize};
-use tracing::{error, info, warn};
+use tracing::{debug, error, warn};
 
 use crate::bookmark_link::BookmarkLink;
 
@@ -16,7 +16,7 @@ pub struct Bookmark {
 
     pub current_episode: Episode,
     pub link: BookmarkLinkBox,
-    /// True if the latest episode is already watched
+    /// True if the current episode is already watched
     pub finished: bool,
     #[serde(skip)]
     pub show_details: bool,
@@ -41,13 +41,36 @@ impl Bookmark {
         match action {
             BookmarkMessage::IncrE(details) => {
                 if let Some(details) = details {
-                    self.current_episode = details.next_episode(self.current_episode.clone());
+                    debug!("increment bookmark episode {:?}", self);
+                    let next_episode = details.next_episode(self.current_episode.clone());
+                    self.finished = next_episode == self.current_episode;
+                    self.current_episode = next_episode;
                 } else {
-                    warn!("Can not incremend episode if movie details are not loaded");
+                    warn!(
+                        "Can not increment episode as the movie details are not loaded id: {}",
+                        self.movie.id
+                    );
                 }
             }
-            // BookmarkMessage::DecrE => self.current_episode = (self.current_episode - 1).max(1),
-            BookmarkMessage::DecrE => {}
+            BookmarkMessage::DecrE(details) => {
+                if let Some(details) = details {
+                    debug!("decrement bookmark episode {:?}", self);
+                    if self.finished {
+                        debug!("Since the bookmark was on finished state, finish flag was removed");
+                        self.finished = false;
+                    } else {
+                        let previous_episode =
+                            details.previous_episode(self.current_episode.clone());
+                        self.current_episode = previous_episode;
+                        self.finished = false;
+                    }
+                } else {
+                    warn!(
+                        "Can not decrement episode as the movie details are not loaded id: {}",
+                        self.movie.id
+                    );
+                }
+            }
             BookmarkMessage::LinkInputChanged(new_input) => {
                 if let BookmarkLinkBox::Input(s) = &mut self.link {
                     *s = new_input;
@@ -56,11 +79,17 @@ impl Bookmark {
             BookmarkMessage::LinkInputSubmit => {
                 if let BookmarkLinkBox::Input(s) = &mut self.link {
                     let link = BookmarkLink::new(s);
+                    debug!("Link was submitted and parsed to {:?}", link);
                     if let Ok(link) = link {
                         self.link = BookmarkLinkBox::Link(link);
                     } else {
                         error!("{:?} is not a valid link. Error {:?}", s, link)
                     }
+                } else {
+                    warn!(
+                        "received a LinkInputSubmit message the bookmark has no LinkInput {:?}",
+                        self
+                    );
                 }
             }
             BookmarkMessage::LinkToClipboard(details) => {
@@ -92,7 +121,7 @@ impl Bookmark {
                         }
                     }
                 };
-                info!("copied {} to clipboard", &url);
+                debug!("copied {} to clipboard", &url);
                 return Command::batch([
                     self.apply(BookmarkMessage::IncrE(details)),
                     clipboard::write::<Message>(url),

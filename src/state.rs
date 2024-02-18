@@ -1,4 +1,5 @@
 use iced::Command;
+use tracing::debug;
 
 use crate::filter::Filter;
 use crate::message::Message;
@@ -22,13 +23,6 @@ pub struct State {
     pub dirty: bool,
     pub saving: bool,
     pub tmdb_config: Option<TmdbConfig>,
-    pub debug: DebugState,
-}
-#[derive(Default, Debug, PartialEq)]
-pub enum DebugState {
-    Debug,
-    #[default]
-    Release,
 }
 impl State {
     pub fn save(&mut self, saved: bool) -> Command<Message> {
@@ -39,6 +33,7 @@ impl State {
         if self.dirty && !self.saving {
             self.dirty = false;
             self.saving = true;
+            debug!("saving state");
             Command::perform(
                 SavedState {
                     bookmarks: self.bookmarks.clone(),

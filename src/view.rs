@@ -45,7 +45,7 @@ impl Bookmark {
                 self.link_view(details)
             ]
             .width(Length::FillPortion(5)),
-            button(if self.show_details { "↓" } else { "↑" })
+            button(if self.show_details { "↑" } else { "↓" })
                 .padding(30.)
                 .style(theme::Button::Secondary)
                 .on_press(BookmarkMessage::ToggleDetails),
@@ -74,7 +74,7 @@ impl Bookmark {
                                 button("↓")
                                     .style(theme::Button::Secondary)
                                     .padding(10)
-                                    .on_press(BookmarkMessage::DecrE)
+                                    .on_press(BookmarkMessage::DecrE(details.cloned()))
                             ])
                             .width(Length::Fill)
                             .align_x(Horizontal::Center),

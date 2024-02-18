@@ -5,7 +5,7 @@ use iced::{
     Command,
 };
 use serde::{Deserialize, Serialize};
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     bookmark::Bookmark,
@@ -178,7 +178,7 @@ impl App {
                     Message::ExecuteRequest(req)
                 })
             });
-
+        debug!("Finished loading the app state. Loading details and images next");
         Command::batch(iter_load_details.chain(iter_load_posters))
     }
 }

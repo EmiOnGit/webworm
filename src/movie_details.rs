@@ -212,7 +212,7 @@ pub struct Season {
     overview: String,
     poster_path: Option<String>,
 }
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Episode {
     Seasonal(SeasonEpisode),
     Total(TotalEpisode),
@@ -242,7 +242,7 @@ pub struct SeasonEpisode {
     /// The season of the episode. The first season is assumed to be 1
     pub season_number: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TotalEpisode {
     pub episode: usize,
 }

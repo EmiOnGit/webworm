@@ -19,7 +19,7 @@ use serde_json::{from_value, Value};
 use tracing::{debug, error, info, warn};
 
 use crate::bookmark::{Bookmark, Poster};
-use crate::message::{empty_message, loading_message, BookmarkMessage, Message};
+use crate::message::{empty_message, loading_message, BookmarkMessage, Message, ShiftPressed};
 
 const TITLE_NAME: &str = "Webworm";
 pub const ICON_FONT: Font = Font::with_name("Noto Color Emoji");
@@ -214,7 +214,10 @@ impl Application for App {
                         }
                         Command::none()
                     }
-                    Message::BookmarkMessage(i, message) => {
+                    Message::BookmarkMessage(i, mut message) => {
+                        if let BookmarkMessage::LinkToClipboard(_, ref mut shift) = message {
+                            *shift = state.shift_pressed.clone();
+                        };
                         if let Some(bookmark) = state.bookmarks.get_mut(i) {
                             bookmark.apply(message)
                         } else {
@@ -228,8 +231,8 @@ impl Application for App {
 
                         Command::none()
                     }
-                    Message::TabPressed { shift } => {
-                        if shift {
+                    Message::TabPressed => {
+                        if state.shift_pressed == ShiftPressed::True {
                             widget::focus_previous()
                         } else {
                             widget::focus_next()
@@ -242,6 +245,10 @@ impl Application for App {
                     }
                     Message::FontLoaded(_) => {
                         error!("Loaded font after loading state.");
+                        Command::none()
+                    }
+                    Message::ShiftPressed(shift) => {
+                        state.shift_pressed = shift;
                         Command::none()
                     }
                 };
@@ -329,25 +336,34 @@ impl Application for App {
 
     fn subscription(&self) -> Subscription<Message> {
         use keyboard::key;
-
-        keyboard::on_key_press(|key, modifiers| {
+        let on_press = keyboard::on_key_press(|key, modifiers| {
             let keyboard::Key::Named(key) = key else {
                 return None;
             };
 
             match (key, modifiers) {
-                (key::Named::Tab, _) => Some(Message::TabPressed {
-                    shift: modifiers.shift(),
-                }),
+                (key::Named::Tab, _) => Some(Message::TabPressed),
                 (key::Named::ArrowUp, keyboard::Modifiers::SHIFT) => {
                     Some(Message::ToggleFullscreen(window::Mode::Fullscreen))
                 }
                 (key::Named::ArrowDown, keyboard::Modifiers::SHIFT) => {
                     Some(Message::ToggleFullscreen(window::Mode::Windowed))
                 }
+                (key::Named::Shift, _) => Some(Message::ShiftPressed(ShiftPressed::True)),
                 _ => None,
             }
-        })
+        });
+        let on_release = keyboard::on_key_release(|key, _modifier| {
+            let keyboard::Key::Named(key) = key else {
+                return None;
+            };
+            if key == key::Named::Shift {
+                Some(Message::ShiftPressed(ShiftPressed::False))
+            } else {
+                None
+            }
+        });
+        Subscription::batch([on_press, on_release])
     }
 }
 fn view_controls(movies: &[TmdbMovie], current_filter: Filter) -> Element<Message> {

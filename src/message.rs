@@ -24,7 +24,8 @@ pub enum Message {
     FilterChanged(Filter),
     MovieMessage(usize, MovieMessage),
     BookmarkMessage(usize, BookmarkMessage),
-    TabPressed { shift: bool },
+    TabPressed,
+    ShiftPressed(ShiftPressed),
     ToggleFullscreen(window::Mode),
 }
 pub fn loading_message<'a>() -> Element<'a, Message> {
@@ -59,5 +60,12 @@ pub enum BookmarkMessage {
     LinkInputChanged(String),
     RemoveLink,
     LinkInputSubmit,
-    LinkToClipboard(Option<MovieDetails>),
+    LinkToClipboard(Option<MovieDetails>, ShiftPressed),
+}
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum ShiftPressed {
+    True,
+    #[default]
+    False,
+    Unknown,
 }

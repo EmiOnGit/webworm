@@ -2,7 +2,7 @@ use iced::Command;
 use tracing::debug;
 
 use crate::filter::Filter;
-use crate::message::Message;
+use crate::message::{Message, ShiftPressed};
 use crate::save::SavedState;
 use std::collections::HashMap;
 
@@ -23,6 +23,7 @@ pub struct State {
     pub dirty: bool,
     pub saving: bool,
     pub tmdb_config: Option<TmdbConfig>,
+    pub shift_pressed: ShiftPressed,
 }
 impl State {
     pub fn save(&mut self, saved: bool) -> Command<Message> {

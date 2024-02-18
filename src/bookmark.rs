@@ -6,7 +6,7 @@ use tracing::{debug, error, warn};
 
 use crate::bookmark_link::BookmarkLink;
 
-use crate::message::{BookmarkMessage, Message};
+use crate::message::{BookmarkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, TotalEpisode};
 
@@ -92,7 +92,7 @@ impl Bookmark {
                     );
                 }
             }
-            BookmarkMessage::LinkToClipboard(details) => {
+            BookmarkMessage::LinkToClipboard(details, shift) => {
                 let BookmarkLinkBox::Link(link) = &self.link else {
                     return Command::none();
                 };
@@ -122,10 +122,15 @@ impl Bookmark {
                     }
                 };
                 debug!("copied {} to clipboard", &url);
-                return Command::batch([
-                    self.apply(BookmarkMessage::IncrE(details)),
-                    clipboard::write::<Message>(url),
-                ]);
+                return if shift == ShiftPressed::True {
+                    debug!("Since shift was pressed the bookmark is not increased");
+                    Command::batch([clipboard::write::<Message>(url)])
+                } else {
+                    Command::batch([
+                        self.apply(BookmarkMessage::IncrE(details)),
+                        clipboard::write::<Message>(url),
+                    ])
+                };
             }
             BookmarkMessage::Remove => {}
             BookmarkMessage::ToggleDetails => {

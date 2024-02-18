@@ -6,7 +6,7 @@ use iced::{Alignment, Element};
 
 use crate::bookmark::{Bookmark, BookmarkLinkBox, Poster};
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
-use crate::message::{BookmarkMessage, Message};
+use crate::message::{BookmarkMessage, Message, ShiftPressed};
 use crate::movie::{MovieMessage, TmdbMovie};
 use crate::movie_details::{Episode, MovieDetails};
 
@@ -108,7 +108,10 @@ impl Bookmark {
     fn link_view(&self, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
         match &self.link {
             BookmarkLinkBox::Link(l) => iced::widget::button(l.string_link.as_str())
-                .on_press(BookmarkMessage::LinkToClipboard(details.cloned()))
+                .on_press(BookmarkMessage::LinkToClipboard(
+                    details.cloned(),
+                    ShiftPressed::Unknown,
+                ))
                 .style(theme::Button::Secondary)
                 .width(Length::Fill)
                 .into(),

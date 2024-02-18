@@ -16,6 +16,7 @@ pub struct Bookmark {
 
     pub current_episode: Episode,
     pub link: BookmarkLinkBox,
+    /// True if the latest episode is already watched
     pub finished: bool,
     #[serde(skip)]
     pub show_details: bool,

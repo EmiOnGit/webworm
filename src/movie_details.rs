@@ -110,6 +110,40 @@ impl MovieDetails {
             season_number,
         };
     }
+    pub fn previous_episode(&self, episode: Episode) -> Episode {
+        match episode {
+            Episode::Seasonal(SeasonEpisode {
+                episode_number,
+                season_number,
+            }) => {
+                if episode_number > 1 {
+                    Episode::Seasonal(SeasonEpisode {
+                        episode_number: episode_number - 1,
+                        season_number,
+                    })
+                } else if season_number > 1 {
+                    let previous_season = self
+                        .seasons
+                        .iter()
+                        .find(|s| s.season_number == season_number - 1)
+                        .expect(&format!(
+                            "can not find season {} for movie {}",
+                            season_number - 1,
+                            self.id,
+                        ));
+                    Episode::Seasonal(SeasonEpisode {
+                        episode_number: previous_season.episode_count,
+                        season_number: previous_season.season_number,
+                    })
+                } else {
+                    episode
+                }
+            }
+            Episode::Total(ep) => Episode::Total(TotalEpisode {
+                episode: (ep.episode - 1).max(1),
+            }),
+        }
+    }
     pub fn next_episode(&self, mut episode: Episode) -> Episode {
         let last_published = self.last_published();
         match &mut episode {
@@ -132,11 +166,13 @@ impl MovieDetails {
                 }
             }
             Episode::Total(ep) => {
-                if self.number_of_episodes > ep.episode {
-                    episode = Episode::Total(TotalEpisode {
-                        episode: ep.episode + 1,
-                    });
-                }
+                let last_published = self.last_published();
+                let TotalEpisode {
+                    episode: total_episodes,
+                } = self.as_total_episodes(&last_published);
+                episode = Episode::Total(TotalEpisode {
+                    episode: (ep.episode + 1).min(total_episodes),
+                });
             }
         }
         episode

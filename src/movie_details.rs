@@ -82,9 +82,13 @@ impl MovieDetails {
         let sum_before: usize = self
             .seasons
             .iter()
-            .filter(|season| season.season_number < episode.season_number)
+            .filter(|season| {
+                season.season_number < episode.season_number && !season.name.contains("Specials")
+            })
             .map(|s| s.episode_count)
             .sum();
+        error!("sum before {}", sum_before);
+        error!("seasons: {:?}", self.seasons);
         TotalEpisode {
             episode: sum_before + episode.episode_number,
         }

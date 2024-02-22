@@ -5,7 +5,6 @@ use crate::save::{load_poster, SavedState};
 use crate::state::State;
 use crate::tmdb::{send_request, RequestType, TmdbResponse};
 use iced::alignment::{self, Alignment};
-use iced::font::{self, Font};
 use iced::keyboard;
 use iced::theme::{self, Theme};
 use iced::widget::{
@@ -22,8 +21,6 @@ use crate::bookmark::{Bookmark, Poster};
 use crate::message::{empty_message, loading_message, BookmarkMessage, Message, ShiftPressed};
 
 const TITLE_NAME: &str = "Webworm";
-pub const ICON_FONT: Font = Font::with_name("Noto Color Emoji");
-const ICON_FONT_BYTES: &[u8] = include_bytes!("../assets/NotoColorEmoji.ttf");
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 pub static INPUT_LINK_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 pub static FONT_SIZE_HEADER: u16 = 30;
@@ -44,10 +41,7 @@ impl Application for App {
     fn new(_flags: ()) -> (App, Command<Message>) {
         (
             App::Loading,
-            Command::batch(vec![
-                font::load(ICON_FONT_BYTES).map(Message::FontLoaded),
-                Command::perform(SavedState::load(), Message::Loaded),
-            ]),
+            Command::batch(vec![Command::perform(SavedState::load(), Message::Loaded)]),
         )
     }
 
@@ -64,7 +58,6 @@ impl Application for App {
                         error!("Something went wrong with loading the app state. Default configuration is used");
                         *self = App::Loaded(State::default());
                     }
-                    Message::FontLoaded(_) => {}
                     _ => {
                         error!("Received message {message:?} in loading phase")
                     }
@@ -241,10 +234,6 @@ impl Application for App {
                     Message::ToggleFullscreen(mode) => window::change_mode(window::Id::MAIN, mode),
                     Message::Loaded(_) => {
                         error!("Loaded the app state even though it should already was loaded");
-                        Command::none()
-                    }
-                    Message::FontLoaded(_) => {
-                        error!("Loaded font after loading state.");
                         Command::none()
                     }
                     Message::ShiftPressed(shift) => {
@@ -425,7 +414,7 @@ fn view_input(input: &str) -> Element<'static, Message> {
 }
 pub fn icon(unicode: char) -> Text<'static> {
     text(unicode.to_string())
-        .font(crate::gui::ICON_FONT)
+        // .font(crate::gui::ICON_FONT)
         .width(20)
         .horizontal_alignment(alignment::Horizontal::Center)
 }

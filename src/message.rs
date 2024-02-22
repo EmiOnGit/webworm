@@ -1,5 +1,3 @@
-use iced::font::{self};
-
 use iced::widget::image::Handle;
 use iced::widget::{container, text};
 use iced::{alignment, window, Color, Element, Length};
@@ -14,7 +12,6 @@ use crate::tmdb::RequestType;
 pub enum Message {
     // Still loading
     Loaded(Result<SavedState, LoadError>),
-    FontLoaded(Result<(), font::Error>),
     // Finished loading
     Saved(Result<(), SaveError>),
     InputChanged(String),

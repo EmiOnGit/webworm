@@ -10,7 +10,7 @@ use crate::movie::TmdbMovie;
 use crate::movie_details::MovieDetails;
 use crate::tmdb::TmdbConfig;
 
-use crate::bookmark::{Bookmark, Poster};
+use crate::bookmark::{Bookmark, BookmarkLinkBox, Poster};
 
 #[derive(Debug, Default)]
 pub struct State {
@@ -19,6 +19,7 @@ pub struct State {
     pub movies: Vec<TmdbMovie>,
     pub movie_details: HashMap<usize, MovieDetails>,
     pub movie_posters: HashMap<usize, Poster>,
+    pub links: HashMap<usize, BookmarkLinkBox>,
     pub bookmarks: Vec<Bookmark>,
     pub dirty: bool,
     pub saving: bool,
@@ -38,6 +39,7 @@ impl State {
             Command::perform(
                 SavedState {
                     bookmarks: self.bookmarks.clone(),
+                    links: self.links.clone(),
                     // We ignore it anyway since we save it in a text file
                     tmdb_config: None,
                 }

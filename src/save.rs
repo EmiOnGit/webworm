@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write};
+use std::{collections::HashMap, fs::File, io::Write};
 
 use iced::{
     widget::image::{self, Handle},
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
 use crate::{
-    bookmark::Bookmark,
+    bookmark::{Bookmark, BookmarkLinkBox},
     gui::App,
     message::Message,
     state::State,
@@ -18,6 +18,7 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
     pub bookmarks: Vec<Bookmark>,
+    pub links: HashMap<usize, BookmarkLinkBox>,
     #[serde(skip)]
     pub tmdb_config: Option<TmdbConfig>,
 }
@@ -141,11 +142,19 @@ pub async fn load_poster(id: usize, url: String, config: TmdbConfig) -> anyhow::
     }
 }
 impl App {
-    pub fn as_loaded(&mut self, state: SavedState) -> Command<Message> {
+    pub fn as_loaded(&mut self, mut state: SavedState) -> Command<Message> {
+        for bookmark in &state.bookmarks {
+            let id = bookmark.movie.id;
+            state
+                .links
+                .entry(id)
+                .or_insert(BookmarkLinkBox::Input(String::new()));
+        }
         // set self to be loaded
         *self = App::Loaded(State {
             tmdb_config: state.tmdb_config,
             bookmarks: state.bookmarks.clone(),
+            links: state.links,
             ..State::default()
         });
         // load new data for the bookmarks

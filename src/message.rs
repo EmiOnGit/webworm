@@ -21,6 +21,7 @@ pub enum Message {
     FilterChanged(Filter),
     MovieMessage(usize, MovieMessage),
     BookmarkMessage(usize, BookmarkMessage),
+    LinkMessage(usize, LinkMessage),
     TabPressed,
     ShiftPressed(ShiftPressed),
     ToggleFullscreen(window::Mode),
@@ -54,10 +55,6 @@ pub enum BookmarkMessage {
     Remove,
     IncrE(Option<MovieDetails>),
     DecrE(Option<MovieDetails>),
-    LinkInputChanged(String),
-    RemoveLink,
-    LinkInputSubmit,
-    LinkToClipboard(Option<MovieDetails>, ShiftPressed),
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum ShiftPressed {
@@ -65,4 +62,12 @@ pub enum ShiftPressed {
     #[default]
     False,
     Unknown,
+}
+#[derive(Clone, Debug)]
+pub enum LinkMessage {
+    LinkInputSubmit,
+    LinkToClipboard(Option<MovieDetails>, ShiftPressed),
+
+    LinkInputChanged(String),
+    RemoveLink,
 }

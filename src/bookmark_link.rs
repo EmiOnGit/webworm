@@ -10,6 +10,7 @@ pub struct BookmarkLink {
     pub link_parts: Vec<LinkPart>,
     pub string_link: String,
 }
+
 fn parse_link(link: &str) -> Vec<LinkPart> {
     let mut parts = Vec::new();
     parse_link_impl(link, &mut parts);

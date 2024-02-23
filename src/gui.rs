@@ -17,8 +17,10 @@ use once_cell::sync::Lazy;
 use serde_json::{from_value, Value};
 use tracing::{debug, error, info, warn};
 
-use crate::bookmark::{Bookmark, Poster};
-use crate::message::{empty_message, loading_message, BookmarkMessage, Message, ShiftPressed};
+use crate::bookmark::{self, Bookmark, Poster};
+use crate::message::{
+    empty_message, loading_message, BookmarkMessage, LinkMessage, Message, ShiftPressed,
+};
 
 const TITLE_NAME: &str = "Webworm";
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
@@ -190,9 +192,14 @@ impl Application for App {
                                 state.bookmarks.iter().position(|b| b.movie.id == movie.id)
                             {
                                 debug!("toggle(remove) bookmark {:?}", &state.bookmarks[i]);
+                                state.links.remove(&movie.id);
                                 state.bookmarks.remove(index);
                             } else {
                                 debug!("toggle(add) bookmark from {:?}", &movie);
+                                state.links.insert(
+                                    movie.id,
+                                    crate::bookmark::BookmarkLinkBox::Input(String::new()),
+                                );
                                 state.bookmarks.push(Bookmark::from(&*movie));
                             }
                         }
@@ -207,14 +214,30 @@ impl Application for App {
                         }
                         Command::none()
                     }
-                    Message::BookmarkMessage(i, mut message) => {
-                        if let BookmarkMessage::LinkToClipboard(_, ref mut shift) = message {
-                            *shift = state.shift_pressed.clone();
-                        };
+                    Message::BookmarkMessage(i, message) => {
                         if let Some(bookmark) = state.bookmarks.get_mut(i) {
                             bookmark.apply(message)
                         } else {
                             warn!("bookmark message received, that couldn't be applied. Mes: {message:?} Index: {i} Bookmarks: {bookmarks:?}",message=message, i=i,bookmarks=&state.bookmarks);
+                            Command::none()
+                        }
+                    }
+                    Message::LinkMessage(i, mut message) => {
+                        if let LinkMessage::LinkToClipboard(_, ref mut shift) = message {
+                            *shift = state.shift_pressed.clone();
+                        };
+                        if let Some(bookmark) = state.bookmarks.get_mut(i) {
+                            if let Some(link) = state.links.get_mut(&bookmark.movie.id) {
+                                link.apply(bookmark, message)
+                            } else {
+                                warn!("couldn't find link at position {}", i);
+                                Command::none()
+                            }
+                        } else {
+                            warn!(
+                                "couldn't find bookmark which corresponds to link at position {}",
+                                i
+                            );
                             Command::none()
                         }
                     }
@@ -257,6 +280,7 @@ impl Application for App {
                 movies,
                 movie_details,
                 movie_posters,
+                links,
                 bookmarks,
                 ..
             }) => {
@@ -296,15 +320,12 @@ impl Application for App {
                                     .map(|(i, bookmark, details)| {
                                         (
                                             bookmark.movie.id,
-                                            bookmark
-                                                .view(
-                                                    i,
-                                                    details,
-                                                    movie_posters.get(&bookmark.movie.id),
-                                                )
-                                                .map(move |message| {
-                                                    Message::BookmarkMessage(i, message)
-                                                }),
+                                            bookmark.view(
+                                                i,
+                                                details,
+                                                links.get(&bookmark.movie.id).unwrap(),
+                                                movie_posters.get(&bookmark.movie.id),
+                                            ),
                                         )
                                     }),
                             )
@@ -318,7 +339,7 @@ impl Application for App {
                     .spacing(20)
                     .max_width(800);
 
-                return scrollable(container(content).padding(40).center_x()).into();
+                scrollable(container(content).padding(40).center_x()).into()
             }
         }
     }

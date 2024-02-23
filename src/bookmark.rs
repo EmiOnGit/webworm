@@ -6,16 +6,14 @@ use tracing::{debug, error, warn};
 
 use crate::bookmark_link::BookmarkLink;
 
-use crate::message::{BookmarkMessage, Message, ShiftPressed};
+use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, TotalEpisode};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bookmark {
     pub movie: TmdbMovie,
-
     pub current_episode: Episode,
-    pub link: BookmarkLinkBox,
     /// True if the current episode is already watched
     pub finished: bool,
     #[serde(skip)]
@@ -31,7 +29,6 @@ impl From<&TmdbMovie> for Bookmark {
             movie: movie.clone(),
             current_episode: Episode::Total(TotalEpisode { episode: 1 }),
             finished: false,
-            link: BookmarkLinkBox::default(),
             show_details: false,
         }
     }
@@ -71,17 +68,28 @@ impl Bookmark {
                     );
                 }
             }
-            BookmarkMessage::LinkInputChanged(new_input) => {
-                if let BookmarkLinkBox::Input(s) = &mut self.link {
-                    *s = new_input;
-                }
+            BookmarkMessage::Remove => {}
+            BookmarkMessage::ToggleDetails => {
+                self.show_details = !self.show_details;
             }
-            BookmarkMessage::LinkInputSubmit => {
-                if let BookmarkLinkBox::Input(s) = &mut self.link {
+        }
+        Command::none()
+    }
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum BookmarkLinkBox {
+    Link(BookmarkLink),
+    Input(String),
+}
+impl BookmarkLinkBox {
+    pub fn apply(&mut self, bookmark: &mut Bookmark, message: LinkMessage) -> Command<Message> {
+        match message {
+            LinkMessage::LinkInputSubmit => {
+                if let BookmarkLinkBox::Input(s) = self {
                     let link = BookmarkLink::new(s);
                     debug!("Link was submitted and parsed to {:?}", link);
                     if let Ok(link) = link {
-                        self.link = BookmarkLinkBox::Link(link);
+                        *self = BookmarkLinkBox::Link(link);
                     } else {
                         error!("{:?} is not a valid link. Error {:?}", s, link)
                     }
@@ -92,11 +100,11 @@ impl Bookmark {
                     );
                 }
             }
-            BookmarkMessage::LinkToClipboard(details, shift) => {
-                let BookmarkLinkBox::Link(link) = &self.link else {
+            LinkMessage::LinkToClipboard(details, shift) => {
+                let BookmarkLinkBox::Link(link) = &self else {
                     return Command::none();
                 };
-                let url = match &self.current_episode {
+                let url = match &bookmark.current_episode {
                     Episode::Seasonal(e) => {
                         if link.has_season() {
                             link.url(e.episode_number, e.season_number)
@@ -127,24 +135,22 @@ impl Bookmark {
                     Command::batch([clipboard::write::<Message>(url)])
                 } else {
                     Command::batch([
-                        self.apply(BookmarkMessage::IncrE(details)),
+                        bookmark.apply(BookmarkMessage::IncrE(details)),
                         clipboard::write::<Message>(url),
                     ])
                 };
             }
-            BookmarkMessage::Remove => {}
-            BookmarkMessage::ToggleDetails => {
-                self.show_details = !self.show_details;
+            LinkMessage::LinkInputChanged(new_input) => {
+                if let BookmarkLinkBox::Input(s) = self {
+                    *s = new_input;
+                }
             }
-            BookmarkMessage::RemoveLink => self.link = BookmarkLinkBox::Input(String::new()),
+            LinkMessage::RemoveLink => {
+                *self = BookmarkLinkBox::Input(String::new());
+            }
         }
         Command::none()
     }
-}
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum BookmarkLinkBox {
-    Link(BookmarkLink),
-    Input(String),
 }
 impl Default for BookmarkLinkBox {
     fn default() -> Self {

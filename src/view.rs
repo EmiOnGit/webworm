@@ -6,17 +6,18 @@ use iced::{Alignment, Element};
 
 use crate::bookmark::{Bookmark, BookmarkLinkBox, Poster};
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
-use crate::message::{BookmarkMessage, Message, ShiftPressed};
+use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
 use crate::movie::{MovieMessage, TmdbMovie};
 use crate::movie_details::{Episode, MovieDetails};
 
 impl Bookmark {
     pub fn view<'a>(
         &'a self,
-        _i: usize,
+        i: usize,
         details: Option<&MovieDetails>,
+        link: &'a BookmarkLinkBox,
         poster: Option<&'a Poster>,
-    ) -> Element<BookmarkMessage> {
+    ) -> Element<Message> {
         let body = row![
             picture_view(poster, Length::FillPortion(3)),
             column![
@@ -42,13 +43,13 @@ impl Bookmark {
                     ]
                     .align_items(Alignment::Center)
                 ],],
-                self.link_view(details)
+                link.link_view(i, details)
             ]
             .width(Length::FillPortion(5)),
             button(if self.show_details { "↑" } else { "↓" })
                 .padding(30.)
                 .style(theme::Button::Secondary)
-                .on_press(BookmarkMessage::ToggleDetails),
+                .on_press(Message::BookmarkMessage(i, BookmarkMessage::ToggleDetails)),
         ]
         .spacing(20)
         .align_items(Alignment::Center);
@@ -67,27 +68,33 @@ impl Bookmark {
                             iced::widget::container(row![
                                 button("↑")
                                     .style(theme::Button::Secondary)
-                                    .on_press(BookmarkMessage::IncrE(details.cloned()))
+                                    .on_press(Message::BookmarkMessage(
+                                        i,
+                                        BookmarkMessage::IncrE(details.cloned())
+                                    ))
                                     .padding(10),
                                 text(format!("{}", self.current_episode.as_info_str()))
                                     .vertical_alignment(Vertical::Bottom),
                                 button("↓")
                                     .style(theme::Button::Secondary)
                                     .padding(10)
-                                    .on_press(BookmarkMessage::DecrE(details.cloned()))
+                                    .on_press(Message::BookmarkMessage(
+                                        i,
+                                        BookmarkMessage::DecrE(details.cloned())
+                                    ))
                             ])
                             .width(Length::Fill)
                             .align_x(Horizontal::Center),
                             iced::widget::container(
                                 button("---")
-                                    .on_press(BookmarkMessage::RemoveLink)
+                                    .on_press(Message::LinkMessage(i, LinkMessage::RemoveLink))
                                     .padding(30)
                                     .style(theme::Button::Secondary)
                             )
                             .align_x(Horizontal::Right),
                             iced::widget::container(
                                 button("X")
-                                    .on_press(BookmarkMessage::Remove)
+                                    .on_press(Message::BookmarkMessage(i, BookmarkMessage::Remove))
                                     .padding(30)
                                     .style(theme::Button::Secondary)
                             )
@@ -105,20 +112,22 @@ impl Bookmark {
             body.into()
         }
     }
-    fn link_view(&self, details: Option<&MovieDetails>) -> Element<BookmarkMessage> {
-        match &self.link {
+}
+impl BookmarkLinkBox {
+    fn link_view(&self, i: usize, details: Option<&MovieDetails>) -> Element<Message> {
+        match &self {
             BookmarkLinkBox::Link(l) => iced::widget::button(l.string_link.as_str())
-                .on_press(BookmarkMessage::LinkToClipboard(
-                    details.cloned(),
-                    ShiftPressed::Unknown,
+                .on_press(Message::LinkMessage(
+                    i,
+                    LinkMessage::LinkToClipboard(details.cloned(), ShiftPressed::Unknown),
                 ))
                 .style(theme::Button::Secondary)
                 .width(Length::Fill)
                 .into(),
             BookmarkLinkBox::Input(s) => text_input("Link:", s)
                 .id(INPUT_LINK_ID.clone())
-                .on_input(BookmarkMessage::LinkInputChanged)
-                .on_submit(BookmarkMessage::LinkInputSubmit)
+                .on_input(move |s| Message::LinkMessage(i, LinkMessage::LinkInputChanged(s)))
+                .on_submit(Message::LinkMessage(i, LinkMessage::LinkInputSubmit))
                 .width(Length::Fill)
                 .padding(15)
                 .size(FONT_SIZE)
@@ -140,8 +149,7 @@ impl TmdbMovie {
             .join(" ");
         iced::widget::container(
             row![
-                picture_view(poster, Length::FillPortion(2))
-                    .map(move |bookmark_mess| Message::BookmarkMessage(i, bookmark_mess)),
+                picture_view(poster, Length::FillPortion(2)),
                 info_column.width(Length::FillPortion(2)),
                 text(description + "...")
                     .width(Length::FillPortion(6))
@@ -161,7 +169,7 @@ impl TmdbMovie {
         .into()
     }
 }
-fn picture_view(poster: Option<&Poster>, width: Length) -> Element<BookmarkMessage> {
+fn picture_view(poster: Option<&Poster>, width: Length) -> Element<Message> {
     if let Some(Poster::Image(img)) = &poster {
         image::viewer(img.clone())
             .width(Length::Fixed(500.))

@@ -8,7 +8,7 @@ description = "Bookmarking tool for tv shows"
 
 [dependencies]
 async-std = "1.0"
-iced = { git = "https://github.com/iced-rs/iced.git", features = ["async-std", "image"]}
+iced = { version = "0.12", features = ["async-std", "image"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 directories-next = "2.0"

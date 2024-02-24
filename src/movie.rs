@@ -14,11 +14,6 @@ pub struct TmdbMovie {
     pub poster_path: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub enum MovieMessage {
-    ToggleBookmark,
-}
-
 impl TmdbMovie {
     pub fn rating(&self) -> u8 {
         (self.vote_average * 10.) as u8
@@ -27,13 +22,13 @@ impl TmdbMovie {
 
 #[derive(Clone, Hash, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct MovieId(usize);
-impl Display for MovieId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Id {}", self.0)
-    }
-}
 impl MovieId {
     pub fn id(&self) -> usize {
         self.0
+    }
+}
+impl Display for MovieId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Id {}", self.0)
     }
 }

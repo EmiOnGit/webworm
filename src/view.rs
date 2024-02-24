@@ -7,7 +7,7 @@ use iced::{Alignment, Element};
 use crate::bookmark::{Bookmark, BookmarkLinkBox, Poster};
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
 use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
-use crate::movie::{MovieMessage, TmdbMovie};
+use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, MovieDetails};
 
 impl Bookmark {
@@ -155,7 +155,7 @@ impl TmdbMovie {
                     .width(Length::FillPortion(6))
                     .style(theme::Text::Default),
                 button(icon('✍'))
-                    .on_press(Message::MovieMessage(i, MovieMessage::ToggleBookmark))
+                    .on_press(Message::ToggleBookmark(i))
                     .padding(10)
                     .width(Length::FillPortion(1))
                     .style(theme::Button::Text),

@@ -1,5 +1,5 @@
 use crate::filter::Filter;
-use crate::movie::{MovieMessage, TmdbMovie};
+use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, MovieDetails};
 use crate::save::{load_poster, SavedState};
 use crate::state::State;
@@ -186,7 +186,7 @@ impl Application for App {
                         state.filter = filter;
                         Command::none()
                     }
-                    Message::MovieMessage(i, MovieMessage::ToggleBookmark) => {
+                    Message::ToggleBookmark(i) => {
                         if let Some(movie) = state.movies.get_mut(i) {
                             if let Some(index) =
                                 state.bookmarks.iter().position(|b| b.movie.id == movie.id)

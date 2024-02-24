@@ -17,7 +17,7 @@ use once_cell::sync::Lazy;
 use serde_json::{from_value, Value};
 use tracing::{debug, error, info, warn};
 
-use crate::bookmark::{self, Bookmark, Poster};
+use crate::bookmark::{Bookmark, Poster};
 use crate::message::{
     empty_message, loading_message, BookmarkMessage, LinkMessage, Message, ShiftPressed,
 };

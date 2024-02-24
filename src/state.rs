@@ -6,7 +6,7 @@ use crate::message::{Message, ShiftPressed};
 use crate::save::SavedState;
 use std::collections::HashMap;
 
-use crate::movie::TmdbMovie;
+use crate::movie::{MovieId, TmdbMovie};
 use crate::movie_details::MovieDetails;
 use crate::tmdb::TmdbConfig;
 
@@ -17,9 +17,9 @@ pub struct State {
     pub input_value: String,
     pub filter: Filter,
     pub movies: Vec<TmdbMovie>,
-    pub movie_details: HashMap<usize, MovieDetails>,
-    pub movie_posters: HashMap<usize, Poster>,
-    pub links: HashMap<usize, BookmarkLinkBox>,
+    pub movie_details: HashMap<MovieId, MovieDetails>,
+    pub movie_posters: HashMap<MovieId, Poster>,
+    pub links: HashMap<MovieId, BookmarkLinkBox>,
     pub bookmarks: Vec<Bookmark>,
     pub dirty: bool,
     pub saving: bool,

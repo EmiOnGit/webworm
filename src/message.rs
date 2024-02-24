@@ -3,7 +3,7 @@ use iced::widget::{container, text};
 use iced::{alignment, window, Color, Element, Length};
 
 use crate::filter::Filter;
-use crate::movie::MovieMessage;
+use crate::movie::{MovieId, MovieMessage};
 use crate::movie_details::MovieDetails;
 use crate::save::{LoadError, SaveError, SavedState};
 use crate::tmdb::RequestType;
@@ -17,7 +17,7 @@ pub enum Message {
     InputChanged(String),
     ExecuteRequest(RequestType),
     RequestResponse(Option<String>, RequestType),
-    RequestPoster(Option<Handle>, usize),
+    RequestPoster(Option<Handle>, MovieId),
     FilterChanged(Filter),
     MovieMessage(usize, MovieMessage),
     BookmarkMessage(usize, BookmarkMessage),

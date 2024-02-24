@@ -11,6 +11,7 @@ use crate::{
     bookmark::{Bookmark, BookmarkLinkBox},
     gui::App,
     message::Message,
+    movie::MovieId,
     state::State,
     tmdb::{self, RequestType, TmdbConfig},
 };
@@ -18,7 +19,7 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
     pub bookmarks: Vec<Bookmark>,
-    pub links: HashMap<usize, BookmarkLinkBox>,
+    pub links: HashMap<MovieId, BookmarkLinkBox>,
     #[serde(skip)]
     pub tmdb_config: Option<TmdbConfig>,
 }
@@ -125,7 +126,7 @@ fn trace_io_error<T: std::fmt::Debug>(t: T) -> T {
     error!("Saving/Loading failed with {t:?}");
     t
 }
-pub async fn load_poster(id: usize, url: String, config: TmdbConfig) -> anyhow::Result<Handle> {
+pub async fn load_poster(id: MovieId, url: String, config: TmdbConfig) -> anyhow::Result<Handle> {
     let mut path = path();
     path.push("posters");
     path.push(format!("{}.png", id));

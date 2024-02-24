@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
+use crate::movie::MovieId;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MovieDetails {
-    pub id: usize,
+    pub id: MovieId,
     seasons: Vec<Season>,
     in_production: bool,
     last_air_date: Option<String>,
@@ -109,10 +111,10 @@ impl MovieDetails {
             season_number = season.season_number;
             episode -= season.episode_count;
         }
-        return SeasonEpisode {
+        SeasonEpisode {
             episode_number: episode,
             season_number,
-        };
+        }
     }
     pub fn previous_episode(&self, episode: Episode) -> Episode {
         match episode {

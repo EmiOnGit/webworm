@@ -1,4 +1,4 @@
-use crate::movie::TmdbMovie;
+use crate::movie::{MovieId, TmdbMovie};
 use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
@@ -7,8 +7,8 @@ use tracing::warn;
 #[derive(Debug, Clone)]
 pub enum RequestType {
     TvSearch { query: String },
-    TvDetails { id: usize },
-    Poster { id: usize, path: String },
+    TvDetails { id: MovieId },
+    Poster { id: MovieId, path: String },
 }
 impl RequestType {
     pub fn url(&self) -> String {
@@ -19,7 +19,7 @@ impl RequestType {
                 let query_cleaned = query.replace(' ', "%20");
                 format!("search/tv?&query={query_cleaned}&")
             }
-            RequestType::TvDetails { id } => format!("tv/{id}?"),
+            RequestType::TvDetails { id } => format!("tv/{}?", id.id()),
             RequestType::Poster { id: _, path } => {
                 return format!("https://image.tmdb.org/t/p/w500/{path}")
             }

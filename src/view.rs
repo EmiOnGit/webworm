@@ -1,8 +1,6 @@
-use std::any::Any;
-
 use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{self};
-use iced::widget::{button, column, image, row, space, text, text_input, Space};
+use iced::widget::{button, column, image, row, text, text_input, Space};
 use iced::Length;
 use iced::{Alignment, Element};
 
@@ -22,9 +20,9 @@ impl Bookmark {
         poster: Option<&'a Poster>,
     ) -> Element<Message> {
         let picture_row = row![
-            Space::with_width(Length::FillPortion(1)),
-            picture_view(poster, Length::FillPortion(1)),
-            text("PLAY").width(Length::FillPortion(1))
+            Space::with_width(Length::Fill),
+            picture_view(poster, Length::Fill),
+            text("PLAY").width(Length::Fill)
         ];
         let progress = text(format!("PROGRESS: {}", self.current_episode.as_info_str()))
             .width(Length::Fill)

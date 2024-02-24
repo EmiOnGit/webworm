@@ -1,3 +1,5 @@
+use std::iter::once;
+
 use crate::filter::Filter;
 use crate::id::MovieIndex;
 use crate::link::BookmarkLinkBox;
@@ -10,7 +12,7 @@ use iced::alignment::{self, Alignment};
 use iced::keyboard;
 use iced::theme::{self, Theme};
 use iced::widget::{
-    self, button, column, container, keyed_column, row, scrollable, text, text_input, Text,
+    self, button, column, container, keyed_column, row, scrollable, text, text_input, Space, Text,
 };
 use iced::window::{self};
 use iced::{Application, Element};
@@ -319,10 +321,26 @@ impl Application for App {
                                     }
                                 })
                                 .collect();
-                            let chunks = bookmarks.chunks(3);
+                            let chunk_size = 3;
+                            let chunks = bookmarks.chunks_exact(chunk_size);
+                            let remainder = chunks.remainder();
+                            let remainder_row =
+                                (0..chunk_size).map(|i| remainder.get(i)).map(|bookmark| {
+                                    if let Some(bookmark) = bookmark {
+                                        bookmark
+                                            .view2(
+                                                movie_details.get(&bookmark.movie.id),
+                                                links.get(&bookmark.movie.id).unwrap(),
+                                                movie_posters.get(&bookmark.movie.id),
+                                            )
+                                            .into()
+                                    } else {
+                                        Space::with_width(Length::Fill).into()
+                                    }
+                                });
                             column(
                                 chunks
-                                    .into_iter()
+                                    // .into_iter()
                                     .map(|bookmarks| {
                                         bookmarks.iter().map(|bookmark| {
                                             bookmark.view2(
@@ -332,7 +350,8 @@ impl Application for App {
                                             )
                                         })
                                     })
-                                    .map(|it| row(it).spacing(50).into()),
+                                    .map(|it| row(it).spacing(50).into())
+                                    .chain(once(row(remainder_row).into())),
                             )
                             .spacing(10)
                             .into()

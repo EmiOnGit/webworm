@@ -7,7 +7,7 @@ pub struct TmdbMovie {
     pub id: MovieId,
     pub genre_ids: Vec<usize>,
     pub overview: String,
-    pub vote_average: f32,
+    vote_average: f32,
     original_name: String,
     pub name: String,
     pub popularity: f32,

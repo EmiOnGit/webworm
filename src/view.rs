@@ -58,11 +58,8 @@ impl Bookmark {
             column![
                 body,
                 row![
-                    column![
-                        text(format!("VOTE: {:.1}/10", self.movie.vote_average)),
-                        text(format!("POPULARITY: {:.0}", self.movie.popularity))
-                    ]
-                    .width(Length::FillPortion(1)),
+                    column![text(format!("POPULARITY: {:.0}", self.movie.popularity))]
+                        .width(Length::FillPortion(1)),
                     column![
                         row![
                             iced::widget::container(row![

@@ -4,7 +4,7 @@ use iced::{clipboard, Command};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, warn};
 
-use crate::bookmark_link::BookmarkLink;
+use crate::link::Link;
 
 use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
@@ -78,7 +78,7 @@ impl Bookmark {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum BookmarkLinkBox {
-    Link(BookmarkLink),
+    Link(Link),
     Input(String),
 }
 impl BookmarkLinkBox {
@@ -86,7 +86,7 @@ impl BookmarkLinkBox {
         match message {
             LinkMessage::LinkInputSubmit => {
                 if let BookmarkLinkBox::Input(s) = self {
-                    let link = BookmarkLink::new(s);
+                    let link = Link::new(s);
                     debug!("Link was submitted and parsed to {:?}", link);
                     if let Ok(link) = link {
                         *self = BookmarkLinkBox::Link(link);

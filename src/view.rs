@@ -1,6 +1,8 @@
+use std::any::Any;
+
 use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{self};
-use iced::widget::{button, column, image, row, text, text_input};
+use iced::widget::{button, column, image, row, space, text, text_input, Space};
 use iced::Length;
 use iced::{Alignment, Element};
 
@@ -13,6 +15,41 @@ use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, MovieDetails};
 
 impl Bookmark {
+    pub fn view2<'a>(
+        &'a self,
+        details: Option<&MovieDetails>,
+        link: &'a BookmarkLinkBox,
+        poster: Option<&'a Poster>,
+    ) -> Element<Message> {
+        let picture_row = row![
+            Space::with_width(Length::FillPortion(1)),
+            picture_view(poster, Length::FillPortion(1)),
+            text("PLAY").width(Length::FillPortion(1))
+        ];
+        let progress = text(format!("PROGRESS: {}", self.current_episode.as_info_str()))
+            .width(Length::Fill)
+            .horizontal_alignment(Horizontal::Center);
+        let latest = if let Some(details) = &details {
+            text(format!(
+                "LATEST: {}",
+                Into::<Episode>::into(details.last_published()).as_info_str()
+            ))
+        } else {
+            text("details not loaded")
+        }
+        .width(Length::Fill)
+        .horizontal_alignment(Horizontal::Center);
+        column![
+            picture_row,
+            text(self.movie.name.as_str())
+                .horizontal_alignment(Horizontal::Center)
+                .width(Length::Fill)
+                .size(FONT_SIZE_HEADER),
+            progress,
+            latest
+        ]
+        .into()
+    }
     pub fn view<'a>(
         &'a self,
         details: Option<&MovieDetails>,

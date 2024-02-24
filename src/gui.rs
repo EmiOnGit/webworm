@@ -319,20 +319,20 @@ impl Application for App {
                                     }
                                 })
                                 .collect();
-                            let chunks = bookmarks.chunks(2);
+                            let chunks = bookmarks.chunks(3);
                             column(
                                 chunks
                                     .into_iter()
                                     .map(|bookmarks| {
                                         bookmarks.iter().map(|bookmark| {
-                                            bookmark.view(
+                                            bookmark.view2(
                                                 movie_details.get(&bookmark.movie.id),
                                                 links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),
                                             )
                                         })
                                     })
-                                    .map(|it| row(it).into()),
+                                    .map(|it| row(it).spacing(50).into()),
                             )
                             .spacing(10)
                             .into()

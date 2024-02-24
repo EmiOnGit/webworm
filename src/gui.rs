@@ -320,13 +320,10 @@ impl Application for App {
                                         }
                                     })
                                     .map(|bookmark| {
-                                        (bookmark, movie_details.get(&bookmark.movie.id))
-                                    })
-                                    .map(|(bookmark, details)| {
                                         (
                                             bookmark.movie.id,
                                             bookmark.view(
-                                                details,
+                                                movie_details.get(&bookmark.movie.id),
                                                 links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),
                                             ),

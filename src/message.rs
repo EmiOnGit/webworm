@@ -3,7 +3,7 @@ use iced::widget::{container, text};
 use iced::{alignment, window, Color, Element, Length};
 
 use crate::filter::Filter;
-use crate::movie::MovieId;
+use crate::id::MovieId;
 use crate::movie_details::MovieDetails;
 use crate::save::{LoadError, SaveError, SavedState};
 use crate::tmdb::RequestType;
@@ -20,8 +20,9 @@ pub enum Message {
     RequestPoster(Option<Handle>, MovieId),
     FilterChanged(Filter),
     ToggleBookmark(usize),
+    RemoveBookmark(usize),
     BookmarkMessage(usize, BookmarkMessage),
-    LinkMessage(usize, LinkMessage),
+    LinkMessage(MovieId, LinkMessage),
     TabPressed,
     ShiftPressed(ShiftPressed),
     ToggleFullscreen(window::Mode),
@@ -52,7 +53,6 @@ pub fn empty_message(message: &str) -> Element<'_, Message> {
 #[derive(Clone, Debug)]
 pub enum BookmarkMessage {
     ToggleDetails,
-    Remove,
     IncrE(Option<MovieDetails>),
     DecrE(Option<MovieDetails>),
 }

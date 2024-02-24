@@ -1,4 +1,6 @@
 use crate::filter::Filter;
+use crate::id::MovieIndex;
+use crate::link::BookmarkLinkBox;
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, MovieDetails};
 use crate::save::{load_poster, SavedState};
@@ -18,9 +20,7 @@ use serde_json::{from_value, Value};
 use tracing::{debug, error, info, warn};
 
 use crate::bookmark::{Bookmark, Poster};
-use crate::message::{
-    empty_message, loading_message, BookmarkMessage, LinkMessage, Message, ShiftPressed,
-};
+use crate::message::{empty_message, loading_message, LinkMessage, Message, ShiftPressed};
 
 const TITLE_NAME: &str = "Webworm";
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
@@ -196,16 +196,15 @@ impl Application for App {
                                 state.bookmarks.remove(index);
                             } else {
                                 debug!("toggle(add) bookmark from {:?}", &movie);
-                                state.links.insert(
-                                    movie.id,
-                                    crate::bookmark::BookmarkLinkBox::Input(String::new()),
-                                );
+                                state
+                                    .links
+                                    .insert(movie.id, BookmarkLinkBox::Input(String::new()));
                                 state.bookmarks.push(Bookmark::from(&*movie));
                             }
                         }
                         Command::none()
                     }
-                    Message::BookmarkMessage(i, BookmarkMessage::Remove) => {
+                    Message::RemoveBookmark(i) => {
                         if i < state.bookmarks.len() {
                             debug!("remove bookmark {:?}", &state.bookmarks[i]);
                             state.bookmarks.remove(i);
@@ -222,24 +221,22 @@ impl Application for App {
                             Command::none()
                         }
                     }
-                    Message::LinkMessage(i, mut message) => {
+                    Message::LinkMessage(id, mut message) => {
                         if let LinkMessage::LinkToClipboard(_, ref mut shift) = message {
                             *shift = state.shift_pressed.clone();
                         };
-                        if let Some(bookmark) = state.bookmarks.get_mut(i) {
-                            if let Some(link) = state.links.get_mut(&bookmark.movie.id) {
-                                link.apply(bookmark, message)
-                            } else {
-                                warn!("couldn't find link at position {}", i);
-                                Command::none()
-                            }
-                        } else {
+                        let Some(bookmark) = state.bookmarks.with_id_mut(id) else {
                             warn!(
                                 "couldn't find bookmark which corresponds to link at position {}",
-                                i
+                                id
                             );
-                            Command::none()
-                        }
+                            return Command::none();
+                        };
+                        let Some(link) = state.links.with_id_mut(id) else {
+                            warn!("couldn't find link at position {}", id);
+                            return Command::none();
+                        };
+                        link.apply(bookmark, message)
                     }
                     Message::Saved(_) => {
                         state.saving = false;

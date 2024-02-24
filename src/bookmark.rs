@@ -1,12 +1,10 @@
 use iced::widget::image;
-use iced::{clipboard, Command};
+use iced::Command;
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
-use crate::link::Link;
-
-use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
+use crate::message::{BookmarkMessage, Message};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, TotalEpisode};
 
@@ -68,92 +66,10 @@ impl Bookmark {
                     );
                 }
             }
-            BookmarkMessage::Remove => {}
             BookmarkMessage::ToggleDetails => {
                 self.show_details = !self.show_details;
             }
         }
         Command::none()
-    }
-}
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum BookmarkLinkBox {
-    Link(Link),
-    Input(String),
-}
-impl BookmarkLinkBox {
-    pub fn apply(&mut self, bookmark: &mut Bookmark, message: LinkMessage) -> Command<Message> {
-        match message {
-            LinkMessage::LinkInputSubmit => {
-                if let BookmarkLinkBox::Input(s) = self {
-                    let link = Link::new(s);
-                    debug!("Link was submitted and parsed to {:?}", link);
-                    if let Ok(link) = link {
-                        *self = BookmarkLinkBox::Link(link);
-                    } else {
-                        error!("{:?} is not a valid link. Error {:?}", s, link)
-                    }
-                } else {
-                    warn!(
-                        "received a LinkInputSubmit message the bookmark has no LinkInput {:?}",
-                        self
-                    );
-                }
-            }
-            LinkMessage::LinkToClipboard(details, shift) => {
-                let BookmarkLinkBox::Link(link) = &self else {
-                    return Command::none();
-                };
-                let url = match &bookmark.current_episode {
-                    Episode::Seasonal(e) => {
-                        if link.has_season() {
-                            link.url(e.episode_number, e.season_number)
-                        } else {
-                            let Some(details) = &details else {
-                                error!("load details before copying to clipboard");
-                                return Command::none();
-                            };
-                            link.url(details.as_total_episodes(&e).episode, 1)
-                        }
-                    }
-                    Episode::Total(e) => {
-                        if link.has_season() {
-                            let Some(details) = &details else {
-                                error!("load details before copying to clipboard");
-                                return Command::none();
-                            };
-                            let e = details.as_seasonal_episode(&e);
-                            link.url(e.episode_number, e.season_number)
-                        } else {
-                            link.url(e.episode, 1)
-                        }
-                    }
-                };
-                debug!("copied {} to clipboard", &url);
-                return if shift == ShiftPressed::True {
-                    debug!("Since shift was pressed the bookmark is not increased");
-                    Command::batch([clipboard::write::<Message>(url)])
-                } else {
-                    Command::batch([
-                        bookmark.apply(BookmarkMessage::IncrE(details)),
-                        clipboard::write::<Message>(url),
-                    ])
-                };
-            }
-            LinkMessage::LinkInputChanged(new_input) => {
-                if let BookmarkLinkBox::Input(s) = self {
-                    *s = new_input;
-                }
-            }
-            LinkMessage::RemoveLink => {
-                *self = BookmarkLinkBox::Input(String::new());
-            }
-        }
-        Command::none()
-    }
-}
-impl Default for BookmarkLinkBox {
-    fn default() -> Self {
-        BookmarkLinkBox::Input(String::new())
     }
 }

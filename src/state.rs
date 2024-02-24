@@ -2,15 +2,17 @@ use iced::Command;
 use tracing::debug;
 
 use crate::filter::Filter;
+use crate::id::MovieId;
+use crate::link::BookmarkLinkBox;
 use crate::message::{Message, ShiftPressed};
 use crate::save::SavedState;
 use std::collections::HashMap;
 
-use crate::movie::{MovieId, TmdbMovie};
+use crate::movie::TmdbMovie;
 use crate::movie_details::MovieDetails;
 use crate::tmdb::TmdbConfig;
 
-use crate::bookmark::{Bookmark, BookmarkLinkBox, Poster};
+use crate::bookmark::{Bookmark, Poster};
 
 #[derive(Debug, Default)]
 pub struct State {

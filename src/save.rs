@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
 use crate::{
-    bookmark::{Bookmark, BookmarkLinkBox},
+    bookmark::Bookmark,
     gui::App,
+    id::MovieId,
+    link::BookmarkLinkBox,
     message::Message,
-    movie::MovieId,
     state::State,
     tmdb::{self, RequestType, TmdbConfig},
 };

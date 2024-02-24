@@ -4,8 +4,10 @@ use iced::widget::{button, column, image, row, text, text_input};
 use iced::Length;
 use iced::{Alignment, Element};
 
-use crate::bookmark::{Bookmark, BookmarkLinkBox, Poster};
+use crate::bookmark::{Bookmark, Poster};
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
+use crate::id::MovieId;
+use crate::link::BookmarkLinkBox;
 use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, MovieDetails};
@@ -43,7 +45,7 @@ impl Bookmark {
                     ]
                     .align_items(Alignment::Center)
                 ],],
-                link.link_view(i, details)
+                link.link_view(self.movie.id, details)
             ]
             .width(Length::FillPortion(5)),
             button(if self.show_details { "↑" } else { "↓" })
@@ -84,14 +86,17 @@ impl Bookmark {
                             .align_x(Horizontal::Center),
                             iced::widget::container(
                                 button("---")
-                                    .on_press(Message::LinkMessage(i, LinkMessage::RemoveLink))
+                                    .on_press(Message::LinkMessage(
+                                        self.movie.id,
+                                        LinkMessage::RemoveLink
+                                    ))
                                     .padding(30)
                                     .style(theme::Button::Secondary)
                             )
                             .align_x(Horizontal::Right),
                             iced::widget::container(
                                 button("X")
-                                    .on_press(Message::BookmarkMessage(i, BookmarkMessage::Remove))
+                                    .on_press(Message::RemoveBookmark(i))
                                     .padding(30)
                                     .style(theme::Button::Secondary)
                             )
@@ -111,11 +116,11 @@ impl Bookmark {
     }
 }
 impl BookmarkLinkBox {
-    fn link_view(&self, i: usize, details: Option<&MovieDetails>) -> Element<Message> {
+    fn link_view(&self, id: MovieId, details: Option<&MovieDetails>) -> Element<Message> {
         match &self {
             BookmarkLinkBox::Link(l) => iced::widget::button(l.string_link.as_str())
                 .on_press(Message::LinkMessage(
-                    i,
+                    id,
                     LinkMessage::LinkToClipboard(details.cloned(), ShiftPressed::Unknown),
                 ))
                 .style(theme::Button::Secondary)
@@ -123,8 +128,8 @@ impl BookmarkLinkBox {
                 .into(),
             BookmarkLinkBox::Input(s) => text_input("Link:", s)
                 .id(INPUT_LINK_ID.clone())
-                .on_input(move |s| Message::LinkMessage(i, LinkMessage::LinkInputChanged(s)))
-                .on_submit(Message::LinkMessage(i, LinkMessage::LinkInputSubmit))
+                .on_input(move |s| Message::LinkMessage(id, LinkMessage::LinkInputChanged(s)))
+                .on_submit(Message::LinkMessage(id, LinkMessage::LinkInputSubmit))
                 .width(Length::Fill)
                 .padding(15)
                 .size(FONT_SIZE)

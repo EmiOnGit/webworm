@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::movie::MovieId;
+use crate::id::MovieId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MovieDetails {

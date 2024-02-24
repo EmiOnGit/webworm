@@ -1,6 +1,7 @@
 pub mod bookmark;
 pub mod filter;
 pub mod gui;
+pub mod id;
 pub mod link;
 pub mod message;
 pub mod movie;

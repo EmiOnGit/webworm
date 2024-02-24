@@ -1,4 +1,4 @@
-use crate::movie::{MovieId, TmdbMovie};
+use crate::{id::MovieId, movie::TmdbMovie};
 use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;

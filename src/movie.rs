@@ -1,6 +1,6 @@
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
+
+use crate::id::MovieId;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TmdbMovie {
@@ -17,18 +17,5 @@ pub struct TmdbMovie {
 impl TmdbMovie {
     pub fn rating(&self) -> u8 {
         (self.vote_average * 10.) as u8
-    }
-}
-
-#[derive(Clone, Hash, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct MovieId(usize);
-impl MovieId {
-    pub fn id(&self) -> usize {
-        self.0
-    }
-}
-impl Display for MovieId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Id {}", self.0)
     }
 }

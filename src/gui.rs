@@ -30,6 +30,7 @@ pub static FONT_SIZE: u16 = 18;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum App {
     Loading,
     Loaded(State),
@@ -122,13 +123,13 @@ impl Application for App {
                                 for movie in &state.movies {
                                     let id = movie.id;
                                     let cmd: Command<Message> =
-                                        Command::perform(async { () }, move |_: ()| {
+                                        Command::perform(async {}, move |_: ()| {
                                             Message::ExecuteRequest(RequestType::TvDetails { id })
                                         });
                                     cmds.push(cmd);
                                     if let Some(path) = movie.poster_path.clone() {
                                         let cmd: Command<Message> =
-                                            Command::perform(async { () }, move |_: ()| {
+                                            Command::perform(async {}, move |_: ()| {
                                                 Message::ExecuteRequest(RequestType::Poster {
                                                     id,
                                                     path,
@@ -162,7 +163,7 @@ impl Application for App {
                                 {
                                     if let Episode::Total(e) = &bookmark.current_episode {
                                         bookmark.current_episode =
-                                            response.as_seasonal_episode(&e).into();
+                                            response.as_seasonal_episode(e).into();
                                     }
                                     if bookmark.finished {
                                         let next =
@@ -201,7 +202,7 @@ impl Application for App {
                                 state
                                     .links
                                     .insert(movie.id, BookmarkLinkBox::Input(String::new()));
-                                state.bookmarks.push(Bookmark::from(&*movie));
+                                state.bookmarks.push(Bookmark::from(movie));
                             }
                         }
                         Command::none()

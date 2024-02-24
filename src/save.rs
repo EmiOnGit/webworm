@@ -175,14 +175,10 @@ impl App {
             .bookmarks
             .iter()
             .filter_map(|bookmark| {
-                if let Some(poster_path) = &bookmark.movie.poster_path {
-                    Some(RequestType::Poster {
+                bookmark.movie.poster_path.as_ref().map(|poster_path| RequestType::Poster {
                         id: bookmark.movie.id,
                         path: poster_path.clone(),
                     })
-                } else {
-                    None
-                }
             })
             .map(|req| {
                 Command::perform(async { Ok(()) }, |_: Result<(), ()>| {

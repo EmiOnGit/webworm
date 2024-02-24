@@ -25,12 +25,7 @@ fn main() -> Result<()> {
     let mut args = std::env::args();
     args.next();
     if let Some(cmd) = args.next() {
-        match cmd.as_str() {
-            "debug" => {
-                debug = true;
-            }
-            _ => {}
-        }
+        debug = cmd.as_str() == "debug";
     }
     let filter = FilterFn::new(move |meta| {
         let target = meta.target();

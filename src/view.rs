@@ -74,7 +74,7 @@ impl Bookmark {
                                         BookmarkMessage::IncrE(details.cloned())
                                     ))
                                     .padding(10),
-                                text(format!("{}", self.current_episode.as_info_str()))
+                                text(self.current_episode.as_info_str().to_string())
                                     .vertical_alignment(Vertical::Bottom),
                                 button("↓")
                                     .style(theme::Button::Secondary)

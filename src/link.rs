@@ -154,7 +154,7 @@ impl BookmarkLinkBox {
                                 error!("load details before copying to clipboard");
                                 return Command::none();
                             };
-                            link.url(details.as_total_episodes(&e).episode, 1)
+                            link.url(details.as_total_episodes(e).episode, 1)
                         }
                     }
                     Episode::Total(e) => {
@@ -163,7 +163,7 @@ impl BookmarkLinkBox {
                                 error!("load details before copying to clipboard");
                                 return Command::none();
                             };
-                            let e = details.as_seasonal_episode(&e);
+                            let e = details.as_seasonal_episode(e);
                             link.url(e.episode_number, e.season_number)
                         } else {
                             link.url(e.episode, 1)

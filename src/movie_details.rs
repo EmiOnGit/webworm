@@ -132,11 +132,9 @@ impl MovieDetails {
                         .seasons
                         .iter()
                         .find(|s| s.season_number == season_number - 1)
-                        .expect(&format!(
-                            "can not find season {} for movie {}",
+                        .unwrap_or_else(|| panic!("can not find season {} for movie {}",
                             season_number - 1,
-                            self.id,
-                        ));
+                            self.id));
                     Episode::Seasonal(SeasonEpisode {
                         episode_number: previous_season.episode_count,
                         season_number: previous_season.season_number,

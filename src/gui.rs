@@ -340,7 +340,6 @@ impl Application for App {
                                 });
                             column(
                                 chunks
-                                    // .into_iter()
                                     .map(|bookmarks| {
                                         bookmarks.iter().map(|bookmark| {
                                             bookmark.view2(
@@ -353,7 +352,7 @@ impl Application for App {
                                     .map(|it| row(it).spacing(50).into())
                                     .chain(once(row(remainder_row).into())),
                             )
-                            .spacing(10)
+                            .spacing(50)
                             .into()
                         }
                     }

@@ -85,7 +85,7 @@ impl Application for App {
                             .expect("TMDB config is not loaded");
                         if let RequestType::Poster { id, path } = request {
                             Command::perform(load_poster(id, path.clone(), config), move |data| {
-                                Message::RequestPoster(data.ok(), id)
+                                Message::RequestPoster(id, data.ok())
                             })
                         } else {
                             Command::perform(send_request(config, request.clone()), |data| {
@@ -93,10 +93,12 @@ impl Application for App {
                             })
                         }
                     }
-                    Message::RequestPoster(handle, id) => {
+                    Message::RequestPoster(id, handle) => {
                         if let Some(handle) = handle {
                             debug!("insert movie poster with {id}");
                             state.movie_posters.insert(id, Poster::Image(handle));
+                        } else {
+                            warn!("failed to request Poster without a handle. {}", id)
                         }
                         Command::none()
                     }
@@ -186,12 +188,12 @@ impl Application for App {
                         state.filter = filter;
                         Command::none()
                     }
-                    Message::ToggleBookmark(i) => {
-                        if let Some(movie) = state.movies.get_mut(i) {
+                    Message::ToggleBookmark(id) => {
+                        if let Some(movie) = state.movies.with_id(id) {
                             if let Some(index) =
                                 state.bookmarks.iter().position(|b| b.movie.id == movie.id)
                             {
-                                debug!("toggle(remove) bookmark {:?}", &state.bookmarks[i]);
+                                debug!("toggle(remove) bookmark {:?}", &state.bookmarks[index]);
                                 state.links.remove(&movie.id);
                                 state.bookmarks.remove(index);
                             } else {
@@ -204,17 +206,21 @@ impl Application for App {
                         }
                         Command::none()
                     }
-                    Message::RemoveBookmark(i) => {
-                        if i < state.bookmarks.len() {
-                            debug!("remove bookmark {:?}", &state.bookmarks[i]);
-                            state.bookmarks.remove(i);
-                        } else {
-                            warn!("tried to remove bookmark at place {}, but there are only {} bookmarks", i + 1, state.bookmarks.len() + 1)
-                        }
+                    Message::RemoveBookmark(id) => {
+                        let Some(index) = state.bookmarks.iter().position(|b| b.movie.id == id)
+                        else {
+                            warn!(
+                                "tried to remove bookmark with {}, but no such bookmark exists",
+                                id,
+                            );
+                            return Command::none();
+                        };
+                        debug!("remove bookmark {:?}", &state.bookmarks[index]);
+                        state.bookmarks.remove(index);
                         Command::none()
                     }
                     Message::BookmarkMessage(i, message) => {
-                        if let Some(bookmark) = state.bookmarks.get_mut(i) {
+                        if let Some(bookmark) = state.bookmarks.with_id_mut(i) {
                             bookmark.apply(message)
                         } else {
                             warn!("bookmark message received, that couldn't be applied. Mes: {message:?} Index: {i} Bookmarks: {bookmarks:?}",message=message, i=i,bookmarks=&state.bookmarks);
@@ -289,9 +295,11 @@ impl Application for App {
                         if movies.is_empty() {
                             empty_message(filter.empty_message())
                         } else {
-                            keyed_column(movies.iter().enumerate().map(|(i, task)| {
-                                (task.id, task.view(i, movie_posters.get(&task.id)))
-                            }))
+                            keyed_column(
+                                movies
+                                    .iter()
+                                    .map(|task| (task.id, task.view(movie_posters.get(&task.id)))),
+                            )
                             .spacing(10)
                             .into()
                         }
@@ -303,22 +311,20 @@ impl Application for App {
                             keyed_column(
                                 bookmarks
                                     .iter()
-                                    .enumerate()
-                                    .filter(|(_i, bookmark)| {
+                                    .filter(|bookmark| {
                                         if Filter::Completed == *filter {
                                             bookmark.finished
                                         } else {
                                             !bookmark.finished
                                         }
                                     })
-                                    .map(|(i, bookmark)| {
-                                        (i, bookmark, movie_details.get(&bookmark.movie.id))
+                                    .map(|bookmark| {
+                                        (bookmark, movie_details.get(&bookmark.movie.id))
                                     })
-                                    .map(|(i, bookmark, details)| {
+                                    .map(|(bookmark, details)| {
                                         (
                                             bookmark.movie.id,
                                             bookmark.view(
-                                                i,
                                                 details,
                                                 links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),

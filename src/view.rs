@@ -15,7 +15,6 @@ use crate::movie_details::{Episode, MovieDetails};
 impl Bookmark {
     pub fn view<'a>(
         &'a self,
-        i: usize,
         details: Option<&MovieDetails>,
         link: &'a BookmarkLinkBox,
         poster: Option<&'a Poster>,
@@ -51,7 +50,10 @@ impl Bookmark {
             button(if self.show_details { "↑" } else { "↓" })
                 .padding(30.)
                 .style(theme::Button::Secondary)
-                .on_press(Message::BookmarkMessage(i, BookmarkMessage::ToggleDetails)),
+                .on_press(Message::BookmarkMessage(
+                    self.movie.id,
+                    BookmarkMessage::ToggleDetails
+                )),
         ]
         .spacing(20)
         .align_items(Alignment::Center);
@@ -68,7 +70,7 @@ impl Bookmark {
                                 button("↑")
                                     .style(theme::Button::Secondary)
                                     .on_press(Message::BookmarkMessage(
-                                        i,
+                                        self.movie.id,
                                         BookmarkMessage::IncrE(details.cloned())
                                     ))
                                     .padding(10),
@@ -78,7 +80,7 @@ impl Bookmark {
                                     .style(theme::Button::Secondary)
                                     .padding(10)
                                     .on_press(Message::BookmarkMessage(
-                                        i,
+                                        self.movie.id,
                                         BookmarkMessage::DecrE(details.cloned())
                                     ))
                             ])
@@ -96,7 +98,7 @@ impl Bookmark {
                             .align_x(Horizontal::Right),
                             iced::widget::container(
                                 button("X")
-                                    .on_press(Message::RemoveBookmark(i))
+                                    .on_press(Message::RemoveBookmark(self.movie.id))
                                     .padding(30)
                                     .style(theme::Button::Secondary)
                             )
@@ -138,7 +140,7 @@ impl BookmarkLinkBox {
     }
 }
 impl TmdbMovie {
-    pub fn view<'a>(&'a self, i: usize, poster: Option<&'a Poster>) -> Element<Message> {
+    pub fn view<'a>(&'a self, poster: Option<&'a Poster>) -> Element<Message> {
         let info_column = column![
             text(self.name.as_str()).style(theme::Text::Default),
             text(format!("Rating: {0}%", self.rating())),
@@ -157,7 +159,7 @@ impl TmdbMovie {
                     .width(Length::FillPortion(6))
                     .style(theme::Text::Default),
                 button(icon('✍'))
-                    .on_press(Message::ToggleBookmark(i))
+                    .on_press(Message::ToggleBookmark(self.id))
                     .padding(10)
                     .width(Length::FillPortion(1))
                     .style(theme::Button::Text),

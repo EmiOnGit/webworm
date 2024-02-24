@@ -309,26 +309,30 @@ impl Application for App {
                         if bookmarks.is_empty() {
                             empty_message(filter.empty_message())
                         } else {
-                            keyed_column(
-                                bookmarks
-                                    .iter()
-                                    .filter(|bookmark| {
-                                        if Filter::Completed == *filter {
-                                            bookmark.finished
-                                        } else {
-                                            !bookmark.finished
-                                        }
-                                    })
-                                    .map(|bookmark| {
-                                        (
-                                            bookmark.movie.id,
+                            let bookmarks: Vec<&Bookmark> = bookmarks
+                                .iter()
+                                .filter(|bookmark| {
+                                    if Filter::Completed == *filter {
+                                        bookmark.finished
+                                    } else {
+                                        !bookmark.finished
+                                    }
+                                })
+                                .collect();
+                            let chunks = bookmarks.chunks(2);
+                            column(
+                                chunks
+                                    .into_iter()
+                                    .map(|bookmarks| {
+                                        bookmarks.iter().map(|bookmark| {
                                             bookmark.view(
                                                 movie_details.get(&bookmark.movie.id),
                                                 links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),
-                                            ),
-                                        )
-                                    }),
+                                            )
+                                        })
+                                    })
+                                    .map(|it| row(it).into()),
                             )
                             .spacing(10)
                             .into()

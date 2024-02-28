@@ -228,7 +228,7 @@ pub struct EpisodeDetails {
     pub name: String,
     pub overview: String,
 }
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Eq, Debug, PartialEq, Serialize, Hash, Deserialize, Clone)]
 pub enum Episode {
     Seasonal(SeasonEpisode),
     Total(TotalEpisode),
@@ -251,7 +251,7 @@ impl Episode {
         }
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Hash, Deserialize, PartialEq, Eq)]
 pub struct SeasonEpisode {
     /// Episode in the season. The first episode of the season should always be 1
     pub episode_number: usize,
@@ -259,7 +259,7 @@ pub struct SeasonEpisode {
     pub season_number: usize,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 pub struct TotalEpisode {
     pub episode: usize,
 }

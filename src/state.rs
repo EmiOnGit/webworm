@@ -2,14 +2,14 @@ use iced::Command;
 use tracing::debug;
 
 use crate::filter::Filter;
-use crate::id::MovieId;
+use crate::id::{EpisodeId, MovieId};
 use crate::link::BookmarkLinkBox;
 use crate::message::{Message, ShiftPressed};
 use crate::save::SavedState;
 use std::collections::HashMap;
 
 use crate::movie::TmdbMovie;
-use crate::movie_details::{EpisodeDetails, MovieDetails};
+use crate::movie_details::{Episode, EpisodeDetails, MovieDetails};
 use crate::tmdb::TmdbConfig;
 
 use crate::bookmark::{Bookmark, Poster};
@@ -21,7 +21,7 @@ pub struct State {
     pub movies: Vec<TmdbMovie>,
     pub movie_details: HashMap<MovieId, MovieDetails>,
     pub movie_posters: HashMap<MovieId, Poster>,
-    pub episode_details: HashMap<MovieId, Vec<EpisodeDetails>>,
+    pub episode_details: HashMap<EpisodeId, EpisodeDetails>,
     pub links: HashMap<MovieId, BookmarkLinkBox>,
     pub bookmarks: Vec<Bookmark>,
     pub dirty: bool,

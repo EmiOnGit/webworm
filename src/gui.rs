@@ -1,7 +1,7 @@
 use std::iter::once;
 
 use crate::filter::Filter;
-use crate::id::MovieIndex;
+use crate::id::{EpisodeId, MovieIndex};
 use crate::link::BookmarkLinkBox;
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, EpisodeDetails, MovieDetails, SeasonEpisode};
@@ -185,12 +185,54 @@ impl Application for App {
                                 Command::none()
                             }
                             RequestType::Poster { id: _, path: _ } => Command::none(),
+                            RequestType::EpisodeDetails { id } => {
+                                let res: Value = serde_json::from_str(&text).unwrap();
+                                debug!(
+                                    "{pretty}",
+                                    pretty = serde_json::to_string_pretty(&res).unwrap()
+                                );
+                                let Ok(response): serde_json::Result<EpisodeDetails> =
+                                    from_value(res)
+                                else {
+                                    error!("failed reading episode details with:");
+                                    let res: Value = serde_json::from_str(&text).unwrap();
+                                    let pretty = serde_json::to_string_pretty(&res).unwrap();
+                                    error!("{pretty}");
+                                    panic!()
+                                };
+                                state.episode_details.insert(id, response);
+                                Command::none()
+                            }
                         }
                     }
                     Message::FilterChanged(filter) => {
                         debug!("changed filter from {:?} to {:?}", state.filter, filter);
                         state.filter = filter;
-                        Command::none()
+
+                        // Load episode details for current episode if not already loaded
+                        if let Filter::Details(movie_id) = filter {
+                            if let Some(bookmark) = state
+                                .bookmarks
+                                .iter()
+                                .find(|bookmark| bookmark.movie.id == movie_id)
+                            {
+                                let episode_id =
+                                    EpisodeId(movie_id, bookmark.current_episode.clone());
+                                if !state.episode_details.contains_key(&episode_id) {
+                                    Command::perform(async {}, move |_: ()| {
+                                        Message::ExecuteRequest(RequestType::EpisodeDetails {
+                                            id: episode_id,
+                                        })
+                                    })
+                                } else {
+                                    Command::none()
+                                }
+                            } else {
+                                Command::none()
+                            }
+                        } else {
+                            Command::none()
+                        }
                     }
                     Message::ToggleBookmark(id) => {
                         if let Some(movie) = state.movies.with_id(id) {
@@ -376,21 +418,8 @@ impl Application for App {
                         let movie = &bookmark.movie;
                         let details = movie_details.get(id);
                         let poster = movie_posters.get(id);
-                        let current_episode_details = episode_details
-                            .get(id)
-                            .map(|e| {
-                                let current = match &bookmark.current_episode {
-                                    Episode::Seasonal(e) => Some(e.clone()),
-                                    Episode::Total(t) => {
-                                        details.map(|details| details.as_seasonal_episode(t))
-                                    }
-                                };
-                                let Some(current) = current else {
-                                    return None;
-                                };
-                                e.iter().find(|e| e.episode == current)
-                            })
-                            .flatten();
+                        let current_episode_details =
+                            episode_details.get(&EpisodeId(*id, bookmark.current_episode.clone()));
                         view_details(movie, details, poster, current_episode_details)
                     }
                 };
@@ -508,10 +537,17 @@ fn view_details(
         Space::with_height(Length::FillPortion(1)).into()
     };
     let details_block = column![
-        row![
-            text("Current Episode:"),
-            column![text("TITLE"), text("S 2 E 2")]
-        ],
+        if let Some(current) = current {
+            row![
+                text("Current Episode:"),
+                column![text(&current.name), text(current.episode.as_info_str())]
+            ]
+        } else {
+            row![
+                text("Current Episode:"),
+                column![text("TITLE"), text("S 2 E 2")]
+            ]
+        },
         latest_episode_block
     ];
     column![

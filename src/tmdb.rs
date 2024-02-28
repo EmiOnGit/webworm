@@ -1,4 +1,8 @@
-use crate::{id::MovieId, movie::TmdbMovie};
+use crate::{
+    id::{EpisodeId, MovieId},
+    movie::TmdbMovie,
+    movie_details::SeasonEpisode,
+};
 use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
@@ -9,6 +13,7 @@ pub enum RequestType {
     TvSearch { query: String },
     TvDetails { id: MovieId },
     Poster { id: MovieId, path: String },
+    EpisodeDetails { id: EpisodeId },
 }
 impl RequestType {
     pub fn url(&self) -> String {
@@ -22,6 +27,21 @@ impl RequestType {
             RequestType::TvDetails { id } => format!("tv/{}?", id.id()),
             RequestType::Poster { id: _, path } => {
                 return format!("https://image.tmdb.org/t/p/w500/{path}")
+            }
+            RequestType::EpisodeDetails { id } => {
+                let seasonal = match &id.1 {
+                    crate::movie_details::Episode::Seasonal(e) => e.clone(),
+                    crate::movie_details::Episode::Total(e) => SeasonEpisode {
+                        episode_number: e.episode,
+                        season_number: 1,
+                    },
+                };
+                format!(
+                    "tv/{movie_id}/season/{s}/episode/{ep}?",
+                    movie_id = id.0.id(),
+                    s = seasonal.season_number,
+                    ep = seasonal.episode_number,
+                )
             }
         };
         format!("{base_url}{body}{rest}")

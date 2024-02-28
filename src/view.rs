@@ -1,10 +1,11 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{self};
-use iced::widget::{button, column, image, row, text, text_input, Space};
+use iced::widget::{button, column, image, row, text, text_input, Button, Image, Space};
 use iced::Length;
 use iced::{Alignment, Element};
 
 use crate::bookmark::{Bookmark, Poster};
+use crate::filter::Filter;
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
 use crate::id::MovieId;
 use crate::link::BookmarkLinkBox;
@@ -13,7 +14,7 @@ use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, MovieDetails};
 
 impl Bookmark {
-    pub fn view2<'a>(
+    pub fn card_view<'a>(
         &'a self,
         details: Option<&MovieDetails>,
         link: &'a BookmarkLinkBox,
@@ -21,17 +22,26 @@ impl Bookmark {
     ) -> Element<Message> {
         let picture_row = row![
             Space::with_width(Length::Fill),
-            picture_view(poster, Length::Fill),
-            text("PLAY").width(Length::Fill)
+            picture_view(self.movie.id, poster, Length::FillPortion(3)),
+            button("PLAY")
+                .on_press(Message::LinkMessage(
+                    self.movie.id,
+                    LinkMessage::LinkToClipboard(details.cloned(), ShiftPressed::Unknown)
+                ))
+                .width(Length::Fill)
         ];
         let progress = text(format!("PROGRESS: {}", self.current_episode.as_info_str()))
             .width(Length::Fill)
             .horizontal_alignment(Horizontal::Center);
         let latest = if let Some(details) = &details {
-            text(format!(
-                "LATEST: {}",
-                Into::<Episode>::into(details.last_published()).as_info_str()
-            ))
+            if let Some(last) = details.last_published() {
+                text(format!(
+                    "LATEST: {}",
+                    Into::<Episode>::into(last.episode).as_info_str()
+                ))
+            } else {
+                text("no latest episode")
+            }
         } else {
             text("details not loaded")
         }
@@ -55,7 +65,7 @@ impl Bookmark {
         poster: Option<&'a Poster>,
     ) -> Element<Message> {
         let body = row![
-            picture_view(poster, Length::FillPortion(3)),
+            picture_view(self.movie.id, poster, Length::FillPortion(3)),
             column![
                 row![column![
                     text(self.movie.name.as_str())
@@ -65,11 +75,15 @@ impl Bookmark {
                         .style(theme::Text::Default),
                     row![
                         if let Some(details) = &details {
-                            text(format!(
-                                "LATEST: {}",
-                                Into::<Episode>::into(details.last_published()).as_info_str()
-                            ))
-                            .width(Length::FillPortion(1))
+                            if let Some(latest) = details.last_published() {
+                                text(format!(
+                                    "LATEST: {}",
+                                    Into::<Episode>::into(latest.episode).as_info_str()
+                                ))
+                                .width(Length::FillPortion(1))
+                            } else {
+                                text("No latest episode")
+                            }
                         } else {
                             text("details not loaded").width(Length::FillPortion(1))
                         },
@@ -188,7 +202,7 @@ impl TmdbMovie {
             .join(" ");
         iced::widget::container(
             row![
-                picture_view(poster, Length::FillPortion(2)),
+                picture_view(self.id, poster, Length::FillPortion(3)),
                 info_column.width(Length::FillPortion(2)),
                 text(description + "...")
                     .width(Length::FillPortion(6))
@@ -208,13 +222,12 @@ impl TmdbMovie {
         .into()
     }
 }
-fn picture_view(poster: Option<&Poster>, width: Length) -> Element<Message> {
+fn picture_view(id: MovieId, poster: Option<&Poster>, width: Length) -> Element<Message> {
     if let Some(Poster::Image(img)) = &poster {
-        image::viewer(img.clone())
-            .width(Length::Fixed(500.))
-            .height(Length::Fixed(200.))
-            .into()
+        button(Image::<image::Handle>::new(img.clone())).width(width)
     } else {
-        iced::widget::text("IMG").width(width).into()
+        button("IMG").width(width)
     }
+    .on_press(Message::FilterChanged(Filter::Details(id)))
+    .into()
 }

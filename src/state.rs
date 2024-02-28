@@ -9,7 +9,7 @@ use crate::save::SavedState;
 use std::collections::HashMap;
 
 use crate::movie::TmdbMovie;
-use crate::movie_details::MovieDetails;
+use crate::movie_details::{EpisodeDetails, MovieDetails};
 use crate::tmdb::TmdbConfig;
 
 use crate::bookmark::{Bookmark, Poster};
@@ -21,6 +21,7 @@ pub struct State {
     pub movies: Vec<TmdbMovie>,
     pub movie_details: HashMap<MovieId, MovieDetails>,
     pub movie_posters: HashMap<MovieId, Poster>,
+    pub episode_details: HashMap<MovieId, Vec<EpisodeDetails>>,
     pub links: HashMap<MovieId, BookmarkLinkBox>,
     pub bookmarks: Vec<Bookmark>,
     pub dirty: bool,

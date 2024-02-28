@@ -11,8 +11,8 @@ pub struct MovieDetails {
     last_air_date: Option<String>,
     number_of_seasons: usize,
     number_of_episodes: usize,
-    last_episode_to_air: Option<SeasonEpisode>,
-    next_episode_to_air: Option<SeasonEpisode>,
+    last_episode_to_air: Option<EpisodeDetails>,
+    next_episode_to_air: Option<EpisodeDetails>,
 }
 impl MovieDetails {
     /// Sometimes shows encode the `SeasonEpisode` to not have resetting episodes counts.
@@ -25,58 +25,59 @@ impl MovieDetails {
             let Some(current_season) = self
                 .seasons
                 .iter()
-                .find(|season| season.season_number == last_episode_to_air.season_number)
+                .find(|season| season.season_number == last_episode_to_air.episode.season_number)
             else {
                 panic!("season for last_episode not found");
             };
 
-            if current_season.episode_count < last_episode_to_air.episode_number {
+            if current_season.episode_count < last_episode_to_air.episode.episode_number {
                 info!(
                     "movie {} seems to have invalid episode formats. The season should only have {} episodes, but the last episode is {} ",
                     self.id,
                     current_season.episode_count,
-                    last_episode_to_air.episode_number
+                    last_episode_to_air.episode.episode_number
                 );
                 let episodes_before_season: usize = self
                     .seasons
                     .iter()
-                    .filter(|s| s.season_number < last_episode_to_air.season_number)
+                    .filter(|s| s.season_number < last_episode_to_air.episode.season_number)
                     .filter(|s| !s.name.contains("Extras") && !s.name.contains("Specials"))
                     .map(|s| s.episode_count)
                     .sum();
                 let Some(episode_number) = last_episode_to_air
+                    .episode
                     .episode_number
                     .checked_sub(episodes_before_season)
                 else {
                     error!("last_episode_to_air: {last_episode_to_air:?}, episodes_before_season: {episodes_before_season}, seasons: {:?}", self.seasons);
                     panic!()
                 };
-                last_episode_to_air.episode_number = episode_number;
+                last_episode_to_air.episode.episode_number = episode_number;
             }
         }
         if let Some(next_episode_to_air) = &mut self.next_episode_to_air {
             let Some(current_season) = self
                 .seasons
                 .iter()
-                .find(|season| season.season_number == next_episode_to_air.season_number)
+                .find(|season| season.season_number == next_episode_to_air.episode.season_number)
             else {
                 panic!("season for last_episode not found");
             };
-            if current_season.episode_count < next_episode_to_air.episode_number {
+            if current_season.episode_count < next_episode_to_air.episode.episode_number {
                 info!(
                     "movie {} seems to have invalid episode formats. The season should only have {} episodes, but the next episode is {} ",
                     self.id,
                     current_season.episode_count,
-                    next_episode_to_air.episode_number
+                    next_episode_to_air.episode.episode_number
                 );
                 let episodes_before_season: usize = self
                     .seasons
                     .iter()
-                    .filter(|s| s.season_number < next_episode_to_air.season_number)
+                    .filter(|s| s.season_number < next_episode_to_air.episode.season_number)
                     .filter(|s| !s.name.contains("Extras") && !s.name.contains("Specials"))
                     .map(|s| s.episode_count)
                     .sum();
-                next_episode_to_air.episode_number -= episodes_before_season;
+                next_episode_to_air.episode.episode_number -= episodes_before_season;
             }
         }
     }
@@ -132,9 +133,13 @@ impl MovieDetails {
                         .seasons
                         .iter()
                         .find(|s| s.season_number == season_number - 1)
-                        .unwrap_or_else(|| panic!("can not find season {} for movie {}",
-                            season_number - 1,
-                            self.id));
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "can not find season {} for movie {}",
+                                season_number - 1,
+                                self.id
+                            )
+                        });
                     Episode::Seasonal(SeasonEpisode {
                         episode_number: previous_season.episode_count,
                         season_number: previous_season.season_number,
@@ -149,10 +154,12 @@ impl MovieDetails {
         }
     }
     pub fn next_episode(&self, mut episode: Episode) -> Episode {
-        let last_published = self.last_published();
+        let Some(last_published) = self.last_published() else {
+            return episode;
+        };
         match &mut episode {
             Episode::Seasonal(ep) => {
-                if *ep != last_published {
+                if *ep != last_published.episode {
                     let current_season = self
                         .seasons
                         .iter()
@@ -170,10 +177,9 @@ impl MovieDetails {
                 }
             }
             Episode::Total(ep) => {
-                let last_published = self.last_published();
                 let TotalEpisode {
                     episode: total_episodes,
-                } = self.as_total_episodes(&last_published);
+                } = self.as_total_episodes(&last_published.episode);
                 episode = Episode::Total(TotalEpisode {
                     episode: (ep.episode + 1).min(total_episodes),
                 });
@@ -183,26 +189,24 @@ impl MovieDetails {
     }
     // / Tries to fetch the last published episode.
     // / In case the last episode was not given, the `id` from the movie is used
-    pub fn last_published(&self) -> SeasonEpisode {
+    pub fn last_published(&self) -> Option<EpisodeDetails> {
         if let Some(last) = &self.last_episode_to_air {
-            last.clone()
+            Some(last.clone())
         } else if let Some(next) = &self.next_episode_to_air {
             let mut last = next.clone();
-            if last.episode_number > 1 {
-                last.episode_number -= 1;
-                last
-            } else if last.season_number == 1 {
-                last
+            if last.episode.episode_number > 1 {
+                last.episode.episode_number -= 1;
+                Some(last)
+            } else if last.episode.season_number == 1 {
+                Some(last)
             } else {
-                last.season_number -= 1;
-                last.episode_number = self.seasons[last.season_number].episode_count;
-                last
+                last.episode.season_number -= 1;
+                last.episode.episode_number =
+                    self.seasons[last.episode.season_number].episode_count;
+                Some(last)
             }
         } else {
-            SeasonEpisode {
-                episode_number: self.number_of_episodes,
-                season_number: self.number_of_seasons,
-            }
+            None
         }
     }
 }
@@ -215,6 +219,14 @@ pub struct Season {
     season_number: usize,
     overview: String,
     poster_path: Option<String>,
+}
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct EpisodeDetails {
+    pub id: usize,
+    #[serde(flatten)]
+    pub episode: SeasonEpisode,
+    pub name: String,
+    pub overview: String,
 }
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Episode {
@@ -246,7 +258,19 @@ pub struct SeasonEpisode {
     /// The season of the episode. The first season is assumed to be 1
     pub season_number: usize,
 }
+
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TotalEpisode {
     pub episode: usize,
+}
+
+impl TotalEpisode {
+    pub fn as_info_str(&self) -> String {
+        format!("{}E", self.episode)
+    }
+}
+impl SeasonEpisode {
+    pub fn as_info_str(&self) -> String {
+        format!("{}E · {}S", self.episode_number, self.season_number)
+    }
 }

@@ -4,7 +4,7 @@ use crate::filter::Filter;
 use crate::id::MovieIndex;
 use crate::link::BookmarkLinkBox;
 use crate::movie::TmdbMovie;
-use crate::movie_details::{Episode, MovieDetails};
+use crate::movie_details::{Episode, EpisodeDetails, MovieDetails, SeasonEpisode};
 use crate::save::{load_poster, SavedState};
 use crate::state::State;
 use crate::tmdb::{send_request, RequestType, TmdbResponse};
@@ -12,7 +12,8 @@ use iced::alignment::{self, Alignment};
 use iced::keyboard;
 use iced::theme::{self, Theme};
 use iced::widget::{
-    self, button, column, container, keyed_column, row, scrollable, text, text_input, Space, Text,
+    self, button, column, container, image, keyed_column, row, scrollable, text, text_input, Image,
+    Row, Space, Text,
 };
 use iced::window::{self};
 use iced::{Application, Element};
@@ -269,6 +270,16 @@ impl Application for App {
                         state.shift_pressed = shift;
                         Command::none()
                     }
+                    Message::InputSubmit(input) => match state.filter {
+                        Filter::Bookmarks | Filter::Completed => Command::none(),
+                        Filter::Search => Command::perform(async {}, move |_: ()| {
+                            Message::ExecuteRequest(RequestType::TvSearch { query: input })
+                        }),
+                        Filter::Details(_) => {
+                            error!("Input submit in Detail window should not be possible");
+                            Command::none()
+                        }
+                    },
                 };
                 let save = state.save(saved);
 
@@ -286,6 +297,7 @@ impl Application for App {
                 movies,
                 movie_details,
                 movie_posters,
+                episode_details,
                 links,
                 bookmarks,
                 ..
@@ -320,6 +332,7 @@ impl Application for App {
                                         !bookmark.finished
                                     }
                                 })
+                                .filter(|bookmark| bookmark.movie.matches_filter(&input_value))
                                 .collect();
                             let chunk_size = 3;
                             let chunks = bookmarks.chunks_exact(chunk_size);
@@ -328,7 +341,7 @@ impl Application for App {
                                 (0..chunk_size).map(|i| remainder.get(i)).map(|bookmark| {
                                     if let Some(bookmark) = bookmark {
                                         bookmark
-                                            .view2(
+                                            .card_view(
                                                 movie_details.get(&bookmark.movie.id),
                                                 links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),
@@ -342,7 +355,7 @@ impl Application for App {
                                 chunks
                                     .map(|bookmarks| {
                                         bookmarks.iter().map(|bookmark| {
-                                            bookmark.view2(
+                                            bookmark.card_view(
                                                 movie_details.get(&bookmark.movie.id),
                                                 links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),
@@ -356,11 +369,39 @@ impl Application for App {
                             .into()
                         }
                     }
+                    Filter::Details(id) => {
+                        let bookmark = bookmarks
+                            .with_id(*id)
+                            .expect("tried to show details for bookmark that does not exist");
+                        let movie = &bookmark.movie;
+                        let details = movie_details.get(id);
+                        let poster = movie_posters.get(id);
+                        let current_episode_details = episode_details
+                            .get(id)
+                            .map(|e| {
+                                let current = match &bookmark.current_episode {
+                                    Episode::Seasonal(e) => Some(e.clone()),
+                                    Episode::Total(t) => {
+                                        details.map(|details| details.as_seasonal_episode(t))
+                                    }
+                                };
+                                let Some(current) = current else {
+                                    return None;
+                                };
+                                e.iter().find(|e| e.episode == current)
+                            })
+                            .flatten();
+                        view_details(movie, details, poster, current_episode_details)
+                    }
                 };
-
-                let content = column![header, input, controls, body]
-                    .spacing(20)
-                    .max_width(800);
+                let content = match filter {
+                    Filter::Bookmarks | Filter::Search | Filter::Completed => {
+                        column![header, input, controls, body]
+                    }
+                    Filter::Details(_) => column![header, body],
+                }
+                .spacing(20)
+                .max_width(1000);
 
                 scrollable(container(content).padding(40).center_x()).into()
             }
@@ -445,13 +486,49 @@ fn view_header() -> Element<'static, Message> {
         .horizontal_alignment(alignment::Horizontal::Right);
     row![title, settings].into()
 }
+fn view_details(
+    movie: &TmdbMovie,
+    details: Option<&MovieDetails>,
+    poster: Option<&Poster>,
+    current: Option<&EpisodeDetails>,
+) -> Element<'static, Message> {
+    let mut poster_row = Row::new();
+    if let Some(poster) = poster {
+        let Poster::Image(image) = poster;
+        poster_row = poster_row.push(Image::<image::Handle>::new(image.clone()));
+    }
+    let latest_episode_block: Element<_, _, _> = if let Some(details) = details {
+        let latest = details.last_published().unwrap();
+        row![
+            text("Latest Episode:"),
+            column![text(&latest.name), text(latest.episode.as_info_str())]
+        ]
+        .into()
+    } else {
+        Space::with_height(Length::FillPortion(1)).into()
+    };
+    let details_block = column![
+        row![
+            text("Current Episode:"),
+            column![text("TITLE"), text("S 2 E 2")]
+        ],
+        latest_episode_block
+    ];
+    column![
+        button("back").on_press(Message::FilterChanged(Filter::Bookmarks)),
+        row![
+            text(&movie.name),
+            text(format!("[{}]", &movie.original_name))
+        ],
+        row![poster_row, details_block],
+    ]
+    .into()
+}
 fn view_input(input: &str) -> Element<'static, Message> {
     text_input("Search", input)
         .id(INPUT_ID.clone())
         .on_input(Message::InputChanged)
-        .on_submit(Message::ExecuteRequest(RequestType::TvSearch {
-            query: input.to_owned(),
-        }))
+        .on_submit(Message::InputSubmit(input.to_string()))
         .padding(15)
         .size(FONT_SIZE)
         .into()

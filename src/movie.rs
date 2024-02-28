@@ -8,7 +8,7 @@ pub struct TmdbMovie {
     pub genre_ids: Vec<usize>,
     pub overview: String,
     vote_average: f32,
-    original_name: String,
+    pub original_name: String,
     pub name: String,
     pub popularity: f32,
     pub poster_path: Option<String>,
@@ -17,5 +17,9 @@ pub struct TmdbMovie {
 impl TmdbMovie {
     pub fn rating(&self) -> u8 {
         (self.vote_average * 10.) as u8
+    }
+    pub fn matches_filter(&self, filter: &str) -> bool {
+        self.name.to_lowercase().contains(filter)
+            || self.original_name.to_lowercase().contains(filter)
     }
 }

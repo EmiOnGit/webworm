@@ -15,6 +15,7 @@ pub enum Message {
     // Finished loading
     Saved(Result<(), SaveError>),
     InputChanged(String),
+    InputSubmit(String),
     ExecuteRequest(RequestType),
     RequestResponse(Option<String>, RequestType),
     RequestPoster(MovieId, Option<Handle>),

@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt::Display};
 use serde::{Deserialize, Serialize};
 
 use crate::{bookmark::Bookmark, movie::TmdbMovie};
+pub struct EpisodeId(usize);
 
 #[derive(Clone, Hash, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct MovieId(usize);

@@ -9,7 +9,7 @@ use crate::save::SavedState;
 use std::collections::HashMap;
 
 use crate::movie::TmdbMovie;
-use crate::movie_details::{Episode, EpisodeDetails, MovieDetails};
+use crate::movie_details::{EpisodeDetails, MovieDetails};
 use crate::tmdb::TmdbConfig;
 
 use crate::bookmark::{Bookmark, Poster};
@@ -52,5 +52,10 @@ impl State {
         } else {
             Command::none()
         }
+    }
+    pub fn get_bookmark(&self, movie_id: MovieId) -> Option<&Bookmark> {
+        self.bookmarks
+            .iter()
+            .find(|bookmark| bookmark.movie.id == movie_id)
     }
 }

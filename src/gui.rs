@@ -2,28 +2,25 @@ use std::iter::once;
 
 use crate::filter::Filter;
 use crate::id::{EpisodeId, MovieIndex};
-use crate::link::BookmarkLinkBox;
 use crate::movie::TmdbMovie;
-use crate::movie_details::{Episode, EpisodeDetails, MovieDetails, SeasonEpisode};
-use crate::save::{load_poster, SavedState};
+use crate::movie_details::{EpisodeDetails, MovieDetails};
+use crate::save::SavedState;
 use crate::state::State;
-use crate::tmdb::{send_request, RequestType, TmdbResponse};
 use iced::alignment::{self, Alignment};
 use iced::keyboard;
 use iced::theme::{self, Theme};
 use iced::widget::{
-    self, button, column, container, image, keyed_column, row, scrollable, text, text_input, Image,
-    Row, Space, Text,
+    button, column, container, image, keyed_column, row, scrollable, text, text_input, Image, Row,
+    Space, Text,
 };
 use iced::window::{self};
 use iced::{Application, Element};
 use iced::{Color, Command, Length, Subscription};
 use once_cell::sync::Lazy;
-use serde_json::{from_value, Value};
-use tracing::{debug, error, info, warn};
+use tracing::error;
 
 use crate::bookmark::{Bookmark, Poster};
-use crate::message::{empty_message, loading_message, LinkMessage, Message, ShiftPressed};
+use crate::message::{empty_message, loading_message, Message, ShiftPressed};
 
 const TITLE_NAME: &str = "Webworm";
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
@@ -72,260 +69,10 @@ impl Application for App {
                 text_input::focus(INPUT_ID.clone())
             }
             App::Loaded(state) => {
-                let mut saved = false;
-
-                let command = match message {
-                    Message::InputChanged(value) => {
-                        state.input_value = value;
-                        Command::none()
-                    }
-                    Message::ExecuteRequest(request) => {
-                        if let RequestType::TvSearch { .. } = request {
-                            state.input_value.clear();
-                        }
-                        let config = state
-                            .tmdb_config
-                            .clone()
-                            .expect("TMDB config is not loaded");
-                        if let RequestType::Poster { id, path } = request {
-                            Command::perform(load_poster(id, path.clone(), config), move |data| {
-                                Message::RequestPoster(id, data.ok())
-                            })
-                        } else {
-                            Command::perform(send_request(config, request.clone()), |data| {
-                                Message::RequestResponse(data.ok(), request)
-                            })
-                        }
-                    }
-                    Message::RequestPoster(id, handle) => {
-                        if let Some(handle) = handle {
-                            debug!("insert movie poster with {id}");
-                            state.movie_posters.insert(id, Poster::Image(handle));
-                        } else {
-                            warn!("failed to request Poster without a handle. {}", id)
-                        }
-                        Command::none()
-                    }
-                    Message::RequestResponse(text, query) => {
-                        let Some(text) = text else {
-                            return Command::none();
-                        };
-                        match query {
-                            RequestType::TvSearch { .. } => {
-                                let response: serde_json::Result<TmdbResponse> =
-                                    serde_json::from_str(&text);
-                                match response {
-                                    Ok(response) => state.movies = response.results,
-
-                                    Err(e) => {
-                                        error!("{e:?}");
-                                        return Command::none();
-                                    }
-                                }
-                                let mut cmds = Vec::new();
-                                for movie in &state.movies {
-                                    let id = movie.id;
-                                    let cmd: Command<Message> =
-                                        Command::perform(async {}, move |_: ()| {
-                                            Message::ExecuteRequest(RequestType::TvDetails { id })
-                                        });
-                                    cmds.push(cmd);
-                                    if let Some(path) = movie.poster_path.clone() {
-                                        let cmd: Command<Message> =
-                                            Command::perform(async {}, move |_: ()| {
-                                                Message::ExecuteRequest(RequestType::Poster {
-                                                    id,
-                                                    path,
-                                                })
-                                            });
-                                        cmds.push(cmd);
-                                    }
-                                }
-                                Command::batch(cmds)
-                            }
-                            RequestType::TvDetails { .. } => {
-                                let res: Value = serde_json::from_str(&text).unwrap();
-                                debug!(
-                                    "{pretty}",
-                                    pretty = serde_json::to_string_pretty(&res).unwrap()
-                                );
-                                let Ok(mut response): serde_json::Result<MovieDetails> =
-                                    from_value(res)
-                                else {
-                                    error!("failed reading tv details with:");
-                                    let res: Value = serde_json::from_str(&text).unwrap();
-                                    let pretty = serde_json::to_string_pretty(&res).unwrap();
-                                    error!("{pretty}");
-                                    panic!()
-                                };
-                                response.fix_episode_formats();
-                                if let Some(bookmark) = state
-                                    .bookmarks
-                                    .iter_mut()
-                                    .find(|bookmark| bookmark.movie.id == response.id)
-                                {
-                                    if let Episode::Total(e) = &bookmark.current_episode {
-                                        bookmark.current_episode =
-                                            response.as_seasonal_episode(e).into();
-                                    }
-                                    if bookmark.finished {
-                                        let next =
-                                            response.next_episode(bookmark.current_episode.clone());
-                                        if next != bookmark.current_episode {
-                                            info!(
-                                                "found new episode for {:?}. Reset finished state",
-                                                bookmark
-                                            );
-                                            bookmark.finished = false;
-                                            bookmark.current_episode = next;
-                                        }
-                                    }
-                                }
-                                state.movie_details.insert(response.id, response);
-                                Command::none()
-                            }
-                            RequestType::Poster { id: _, path: _ } => Command::none(),
-                            RequestType::EpisodeDetails { id } => {
-                                let res: Value = serde_json::from_str(&text).unwrap();
-                                debug!(
-                                    "{pretty}",
-                                    pretty = serde_json::to_string_pretty(&res).unwrap()
-                                );
-                                let Ok(response): serde_json::Result<EpisodeDetails> =
-                                    from_value(res)
-                                else {
-                                    error!("failed reading episode details with:");
-                                    let res: Value = serde_json::from_str(&text).unwrap();
-                                    let pretty = serde_json::to_string_pretty(&res).unwrap();
-                                    error!("{pretty}");
-                                    panic!()
-                                };
-                                state.episode_details.insert(id, response);
-                                Command::none()
-                            }
-                        }
-                    }
-                    Message::FilterChanged(filter) => {
-                        debug!("changed filter from {:?} to {:?}", state.filter, filter);
-                        state.filter = filter;
-
-                        // Load episode details for current episode if not already loaded
-                        if let Filter::Details(movie_id) = filter {
-                            if let Some(bookmark) = state
-                                .bookmarks
-                                .iter()
-                                .find(|bookmark| bookmark.movie.id == movie_id)
-                            {
-                                let episode_id =
-                                    EpisodeId(movie_id, bookmark.current_episode.clone());
-                                if !state.episode_details.contains_key(&episode_id) {
-                                    Command::perform(async {}, move |_: ()| {
-                                        Message::ExecuteRequest(RequestType::EpisodeDetails {
-                                            id: episode_id,
-                                        })
-                                    })
-                                } else {
-                                    Command::none()
-                                }
-                            } else {
-                                Command::none()
-                            }
-                        } else {
-                            Command::none()
-                        }
-                    }
-                    Message::ToggleBookmark(id) => {
-                        if let Some(movie) = state.movies.with_id(id) {
-                            if let Some(index) =
-                                state.bookmarks.iter().position(|b| b.movie.id == movie.id)
-                            {
-                                debug!("toggle(remove) bookmark {:?}", &state.bookmarks[index]);
-                                state.links.remove(&movie.id);
-                                state.bookmarks.remove(index);
-                            } else {
-                                debug!("toggle(add) bookmark from {:?}", &movie);
-                                state
-                                    .links
-                                    .insert(movie.id, BookmarkLinkBox::Input(String::new()));
-                                state.bookmarks.push(Bookmark::from(movie));
-                            }
-                        }
-                        Command::none()
-                    }
-                    Message::RemoveBookmark(id) => {
-                        let Some(index) = state.bookmarks.iter().position(|b| b.movie.id == id)
-                        else {
-                            warn!(
-                                "tried to remove bookmark with {}, but no such bookmark exists",
-                                id,
-                            );
-                            return Command::none();
-                        };
-                        debug!("remove bookmark {:?}", &state.bookmarks[index]);
-                        state.bookmarks.remove(index);
-                        Command::none()
-                    }
-                    Message::BookmarkMessage(i, message) => {
-                        if let Some(bookmark) = state.bookmarks.with_id_mut(i) {
-                            bookmark.apply(message)
-                        } else {
-                            warn!("bookmark message received, that couldn't be applied. Mes: {message:?} Index: {i} Bookmarks: {bookmarks:?}",message=message, i=i,bookmarks=&state.bookmarks);
-                            Command::none()
-                        }
-                    }
-                    Message::LinkMessage(id, mut message) => {
-                        if let LinkMessage::LinkToClipboard(_, ref mut shift) = message {
-                            *shift = state.shift_pressed.clone();
-                        };
-                        let Some(bookmark) = state.bookmarks.with_id_mut(id) else {
-                            warn!(
-                                "couldn't find bookmark which corresponds to link at position {}",
-                                id
-                            );
-                            return Command::none();
-                        };
-                        let Some(link) = state.links.with_id_mut(id) else {
-                            warn!("couldn't find link at position {}", id);
-                            return Command::none();
-                        };
-                        link.apply(bookmark, message)
-                    }
-                    Message::Saved(_) => {
-                        state.saving = false;
-                        saved = true;
-
-                        Command::none()
-                    }
-                    Message::TabPressed => {
-                        if state.shift_pressed == ShiftPressed::True {
-                            widget::focus_previous()
-                        } else {
-                            widget::focus_next()
-                        }
-                    }
-                    Message::ToggleFullscreen(mode) => window::change_mode(window::Id::MAIN, mode),
-                    Message::Loaded(_) => {
-                        error!("Loaded the app state even though it should already was loaded");
-                        Command::none()
-                    }
-                    Message::ShiftPressed(shift) => {
-                        state.shift_pressed = shift;
-                        Command::none()
-                    }
-                    Message::InputSubmit(input) => match state.filter {
-                        Filter::Bookmarks | Filter::Completed => Command::none(),
-                        Filter::Search => Command::perform(async {}, move |_: ()| {
-                            Message::ExecuteRequest(RequestType::TvSearch { query: input })
-                        }),
-                        Filter::Details(_) => {
-                            error!("Input submit in Detail window should not be possible");
-                            Command::none()
-                        }
-                    },
-                };
+                let update = state.update_state(message);
+                let saved = update.has_just_saved();
                 let save = state.save(saved);
-
-                Command::batch(vec![command, save])
+                Command::batch(vec![update.command(), save])
             }
         }
     }

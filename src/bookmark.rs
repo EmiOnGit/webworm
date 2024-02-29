@@ -4,6 +4,7 @@ use iced::Command;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 
+use crate::id::EpisodeId;
 use crate::message::{BookmarkMessage, Message};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, TotalEpisode};
@@ -71,5 +72,8 @@ impl Bookmark {
             }
         }
         Command::none()
+    }
+    pub fn current_episode_id(&self) -> EpisodeId {
+        EpisodeId(self.movie.id, self.current_episode.clone())
     }
 }

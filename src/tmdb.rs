@@ -7,7 +7,7 @@ use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use tracing::warn;
+use tracing::{info, warn};
 #[derive(Debug, Clone)]
 pub enum RequestType {
     TvSearch { query: String },
@@ -49,7 +49,7 @@ impl RequestType {
 }
 pub async fn send_request(config: TmdbConfig, request: RequestType) -> Result<String> {
     let url = request.url();
-    warn!("send request with {url}");
+    info!("send request with {}", &url[8..]);
     let request = Client::new()
         .get(url)
         .header("accept", "application/json")
@@ -62,7 +62,7 @@ pub async fn send_request(config: TmdbConfig, request: RequestType) -> Result<St
 }
 pub async fn send_byte_request(config: TmdbConfig, request: RequestType) -> Result<Vec<u8>> {
     let url = request.url();
-    warn!("send request with {url}");
+    info!("send request with {}", &url[8..]);
     let request = Client::new()
         .get(url)
         .header("accept", "application/json")

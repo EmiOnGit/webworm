@@ -20,7 +20,7 @@ pub enum Message {
     RequestResponse(Option<String>, RequestType),
     RequestPoster(MovieId, Option<Handle>),
     FilterChanged(Filter),
-    ToggleBookmark(MovieId),
+    AddBookmark(MovieId),
     RemoveBookmark(MovieId),
     BookmarkMessage(MovieId, BookmarkMessage),
     LinkMessage(MovieId, LinkMessage),

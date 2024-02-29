@@ -1,6 +1,6 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{self};
-use iced::widget::{button, column, image, row, text, text_input, Button, Image, Space};
+use iced::widget::{button, column, image, row, text, text_input, Image, Space};
 use iced::Length;
 use iced::{Alignment, Element};
 
@@ -17,6 +17,7 @@ impl Bookmark {
     pub fn card_view<'a>(
         &'a self,
         details: Option<&MovieDetails>,
+
         link: &'a BookmarkLinkBox,
         poster: Option<&'a Poster>,
     ) -> Element<Message> {
@@ -208,7 +209,7 @@ impl TmdbMovie {
                     .width(Length::FillPortion(6))
                     .style(theme::Text::Default),
                 button(icon('✍'))
-                    .on_press(Message::ToggleBookmark(self.id))
+                    .on_press(Message::AddBookmark(self.id))
                     .padding(10)
                     .width(Length::FillPortion(1))
                     .style(theme::Button::Text),

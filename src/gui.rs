@@ -524,12 +524,13 @@ fn view_details(
     let mut poster_row = Row::new();
     if let Some(poster) = poster {
         let Poster::Image(image) = poster;
-        poster_row = poster_row.push(Image::<image::Handle>::new(image.clone()));
+        poster_row = poster_row
+            .push(Image::<image::Handle>::new(image.clone()).width(Length::FillPortion(1)));
     }
     let latest_episode_block: Element<_, _, _> = if let Some(details) = details {
         let latest = details.last_published().unwrap();
         row![
-            text("Latest Episode:"),
+            text("Latest Episode: "),
             column![text(&latest.name), text(latest.episode.as_info_str())]
         ]
         .into()
@@ -539,24 +540,26 @@ fn view_details(
     let details_block = column![
         if let Some(current) = current {
             row![
-                text("Current Episode:"),
+                text("Current Episode: "),
                 column![text(&current.name), text(current.episode.as_info_str())]
             ]
         } else {
             row![
-                text("Current Episode:"),
+                text("Current Episode: "),
                 column![text("TITLE"), text("S 2 E 2")]
             ]
         },
         latest_episode_block
-    ];
+    ]
+    .width(Length::FillPortion(3));
+    poster_row = poster_row.push(details_block);
     column![
         button("back").on_press(Message::FilterChanged(Filter::Bookmarks)),
         row![
-            text(&movie.name),
-            text(format!("[{}]", &movie.original_name))
+            text(&movie.name).size(FONT_SIZE_HEADER),
+            text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
         ],
-        row![poster_row, details_block],
+        poster_row
     ]
     .into()
 }

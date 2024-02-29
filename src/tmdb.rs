@@ -7,7 +7,7 @@ use anyhow::Result;
 use core::fmt;
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use tracing::{info, warn};
+use tracing::info;
 #[derive(Debug, Clone)]
 pub enum RequestType {
     TvSearch { query: String },

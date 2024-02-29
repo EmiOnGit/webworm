@@ -1,6 +1,6 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::theme::{self};
-use iced::widget::{button, column, image, row, text, text_input, Image, Space};
+use iced::widget::{button, column, image, row, text, text_input, Image, Row, Space};
 use iced::Length;
 use iced::{Alignment, Element};
 
@@ -11,13 +11,12 @@ use crate::id::MovieId;
 use crate::link::BookmarkLinkBox;
 use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
-use crate::movie_details::{Episode, MovieDetails};
+use crate::movie_details::{Episode, EpisodeDetails, MovieDetails};
 
 impl Bookmark {
     pub fn card_view<'a>(
         &'a self,
         details: Option<&MovieDetails>,
-
         link: &'a BookmarkLinkBox,
         poster: Option<&'a Poster>,
     ) -> Element<Message> {
@@ -230,5 +229,53 @@ fn picture_view(id: MovieId, poster: Option<&Poster>, width: Length) -> Element<
         button("IMG").width(width)
     }
     .on_press(Message::FilterChanged(Filter::Details(id)))
+    .into()
+}
+pub(crate) fn view_details(
+    movie: &TmdbMovie,
+    details: Option<&MovieDetails>,
+    poster: Option<&Poster>,
+    current: Option<&EpisodeDetails>,
+) -> Element<'static, Message> {
+    let mut poster_row = Row::new();
+    if let Some(poster) = poster {
+        let Poster::Image(image) = poster;
+        poster_row = poster_row
+            .push(Image::<image::Handle>::new(image.clone()).width(Length::FillPortion(1)));
+    }
+    let latest_episode_block: Element<_, _, _> = if let Some(details) = details {
+        let latest = details.last_published().unwrap();
+        row![
+            text("Latest Episode: "),
+            column![text(&latest.name), text(latest.episode.as_info_str())]
+        ]
+        .into()
+    } else {
+        Space::with_height(Length::FillPortion(1)).into()
+    };
+    let details_block = column![
+        if let Some(current) = current {
+            row![
+                text("Current Episode: "),
+                column![text(&current.name), text(current.episode.as_info_str())]
+            ]
+        } else {
+            row![
+                text("Current Episode: "),
+                column![text("TITLE"), text("S 2 E 2")]
+            ]
+        },
+        latest_episode_block
+    ]
+    .width(Length::FillPortion(3));
+    poster_row = poster_row.push(details_block);
+    column![
+        button("back").on_press(Message::FilterChanged(Filter::Bookmarks)),
+        row![
+            text(&movie.name).size(FONT_SIZE_HEADER),
+            text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
+        ],
+        poster_row
+    ]
     .into()
 }

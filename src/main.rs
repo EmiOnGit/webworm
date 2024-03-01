@@ -1,9 +1,23 @@
+pub mod bookmark;
+pub mod filter;
+pub mod gui;
+pub mod id;
+pub mod link;
+pub mod message;
+pub mod movie;
+pub mod movie_details;
+pub mod response;
+pub mod save;
+pub mod state;
+pub mod tmdb;
+pub mod update;
+pub mod view;
 use anyhow::Result;
 use iced::{window, Application, Settings, Size};
 
+use crate::gui::App;
 use tracing::{level_filters::LevelFilter, Level};
 use tracing_subscriber::{filter::FilterFn, layer::SubscriberExt, util::SubscriberInitExt};
-use webworm::gui::App;
 
 const LOG_IGNORE: [&str; 13] = [
     "vulkan::instance",

@@ -6,6 +6,7 @@ use crate::filter::Filter;
 use crate::id::MovieId;
 use crate::movie_details::MovieDetails;
 use crate::save::{LoadError, SaveError, SavedState};
+use crate::state::InputKind;
 use crate::tmdb::RequestType;
 
 #[derive(Debug, Clone)]
@@ -14,8 +15,8 @@ pub enum Message {
     Loaded(Result<SavedState, LoadError>),
     // Finished loading
     Saved(Result<(), SaveError>),
-    InputChanged(String),
-    InputSubmit(String),
+    InputChanged(InputKind, String),
+    InputSubmit(InputKind),
     ExecuteRequest(RequestType),
     RequestResponse(Option<String>, RequestType),
     RequestPoster(MovieId, Option<Handle>),
@@ -53,9 +54,10 @@ pub fn empty_message(message: &str) -> Element<'_, Message> {
 }
 #[derive(Clone, Debug)]
 pub enum BookmarkMessage {
-    ToggleDetails,
     IncrE(Option<MovieDetails>),
     DecrE(Option<MovieDetails>),
+    SetE(String, Option<MovieDetails>),
+    SetS(String, Option<MovieDetails>),
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum ShiftPressed {

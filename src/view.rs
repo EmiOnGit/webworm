@@ -1,6 +1,6 @@
-use iced::alignment::{Horizontal, Vertical};
+use iced::alignment::Horizontal;
 use iced::theme::{self};
-use iced::widget::{button, column, image, row, text, text_input, Image, Row, Space};
+use iced::widget::{button, column, image, row, text, text_input, Column, Image, Row, Space};
 use iced::Length;
 use iced::{Alignment, Element};
 
@@ -9,9 +9,10 @@ use crate::filter::Filter;
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
 use crate::id::MovieId;
 use crate::link::BookmarkLinkBox;
-use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
+use crate::message::{LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, EpisodeDetails, MovieDetails};
+use crate::state::{InputCaches, InputKind};
 
 impl Bookmark {
     pub fn card_view<'a>(
@@ -57,113 +58,6 @@ impl Bookmark {
             latest
         ]
         .into()
-    }
-    pub fn view<'a>(
-        &'a self,
-        details: Option<&MovieDetails>,
-        link: &'a BookmarkLinkBox,
-        poster: Option<&'a Poster>,
-    ) -> Element<Message> {
-        let body = row![
-            picture_view(self.movie.id, poster, Length::FillPortion(3)),
-            column![
-                row![column![
-                    text(self.movie.name.as_str())
-                        .horizontal_alignment(Horizontal::Center)
-                        .width(Length::FillPortion(1))
-                        .size(FONT_SIZE_HEADER)
-                        .style(theme::Text::Default),
-                    row![
-                        if let Some(details) = &details {
-                            if let Some(latest) = details.last_published() {
-                                text(format!(
-                                    "LATEST: {}",
-                                    Into::<Episode>::into(latest.episode).as_info_str()
-                                ))
-                                .width(Length::FillPortion(1))
-                            } else {
-                                text("No latest episode")
-                            }
-                        } else {
-                            text("details not loaded").width(Length::FillPortion(1))
-                        },
-                        text(format!("PROGRESS: {}", self.current_episode.as_info_str()))
-                            .width(Length::FillPortion(1))
-                            .horizontal_alignment(Horizontal::Right)
-                    ]
-                    .align_items(Alignment::Center)
-                ],],
-                link.link_view(self.movie.id, details)
-            ]
-            .width(Length::FillPortion(5)),
-            button(if self.show_details { "↑" } else { "↓" })
-                .padding(30.)
-                .style(theme::Button::Secondary)
-                .on_press(Message::BookmarkMessage(
-                    self.movie.id,
-                    BookmarkMessage::ToggleDetails
-                )),
-        ]
-        .spacing(20)
-        .align_items(Alignment::Center);
-
-        if self.show_details {
-            column![
-                body,
-                row![
-                    column![text(format!("POPULARITY: {:.0}", self.movie.popularity))]
-                        .width(Length::FillPortion(1)),
-                    column![
-                        row![
-                            iced::widget::container(row![
-                                button("↑")
-                                    .style(theme::Button::Secondary)
-                                    .on_press(Message::BookmarkMessage(
-                                        self.movie.id,
-                                        BookmarkMessage::IncrE(details.cloned())
-                                    ))
-                                    .padding(10),
-                                text(self.current_episode.as_info_str().to_string())
-                                    .vertical_alignment(Vertical::Bottom),
-                                button("↓")
-                                    .style(theme::Button::Secondary)
-                                    .padding(10)
-                                    .on_press(Message::BookmarkMessage(
-                                        self.movie.id,
-                                        BookmarkMessage::DecrE(details.cloned())
-                                    ))
-                            ])
-                            .width(Length::Fill)
-                            .align_x(Horizontal::Center),
-                            iced::widget::container(
-                                button("---")
-                                    .on_press(Message::LinkMessage(
-                                        self.movie.id,
-                                        LinkMessage::RemoveLink
-                                    ))
-                                    .padding(30)
-                                    .style(theme::Button::Secondary)
-                            )
-                            .align_x(Horizontal::Right),
-                            iced::widget::container(
-                                button("X")
-                                    .on_press(Message::RemoveBookmark(self.movie.id))
-                                    .padding(30)
-                                    .style(theme::Button::Secondary)
-                            )
-                            .align_x(Horizontal::Right),
-                        ]
-                        .width(Length::Fill)
-                        .align_items(Alignment::Center),
-                        text(&self.movie.overview)
-                    ]
-                    .width(Length::FillPortion(5))
-                ],
-            ]
-            .into()
-        } else {
-            body.into()
-        }
     }
 }
 impl BookmarkLinkBox {
@@ -233,10 +127,54 @@ fn picture_view(id: MovieId, poster: Option<&Poster>, width: Length) -> Element<
 }
 pub(crate) fn view_details(
     movie: &TmdbMovie,
+    input_caches: &InputCaches,
     details: Option<&MovieDetails>,
     poster: Option<&Poster>,
     current: Option<&EpisodeDetails>,
 ) -> Element<'static, Message> {
+    column![
+        button("back").on_press(Message::FilterChanged(Filter::Bookmarks)),
+        row![
+            text(&movie.name).size(FONT_SIZE_HEADER),
+            text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
+        ],
+        details_view_info(details, poster, current),
+        details_view_edit(movie.id, current, details, input_caches)
+    ]
+    .into()
+}
+fn details_view_edit(
+    id: MovieId,
+    current: Option<&EpisodeDetails>,
+    details: Option<&MovieDetails>,
+    input_caches: &InputCaches,
+) -> Column<'static, Message> {
+    let Some(current) = current else {
+        return column![];
+    };
+    let details = details.cloned();
+    let episode = &input_caches[InputKind::EpisodeInput];
+    let current_episode_row = row![
+        text("Current Episode"),
+        text_input("0", episode)
+            .on_submit(Message::InputSubmit(InputKind::EpisodeInput))
+            .on_input(|input| { Message::InputChanged(InputKind::EpisodeInput, input) })
+    ];
+    let season = &input_caches[InputKind::SeasonInput];
+    let current_season_row = row![
+        text("Current Season"),
+        text_input("0", season)
+            .on_submit(Message::InputSubmit(InputKind::SeasonInput))
+            .on_input(|input| { Message::InputChanged(InputKind::SeasonInput, input) })
+    ];
+
+    column![current_episode_row, current_season_row]
+}
+fn details_view_info(
+    details: Option<&MovieDetails>,
+    poster: Option<&Poster>,
+    current: Option<&EpisodeDetails>,
+) -> Row<'static, Message> {
     let mut poster_row = Row::new();
     if let Some(poster) = poster {
         let Poster::Image(image) = poster;
@@ -251,7 +189,27 @@ pub(crate) fn view_details(
         ]
         .into()
     } else {
-        Space::with_height(Length::FillPortion(1)).into()
+        Space::with_width(Length::FillPortion(1)).into()
+    };
+    let upcoming_episode_block: Element<_, _, _> = if let Some(details) = details {
+        if let Some(upcoming_episode) = details.next_episode_to_air() {
+            row![
+                text("Upcoming Episode: "),
+                column![
+                    text(&upcoming_episode.name),
+                    text(upcoming_episode.episode.as_info_str()),
+                    text(format!(
+                        "Releases at {}",
+                        upcoming_episode.air_date.unwrap_or("---".into())
+                    ))
+                ]
+            ]
+            .into()
+        } else {
+            Space::with_width(Length::FillPortion(1)).into()
+        }
+    } else {
+        Space::with_width(Length::FillPortion(1)).into()
     };
     let details_block = column![
         if let Some(current) = current {
@@ -262,20 +220,13 @@ pub(crate) fn view_details(
         } else {
             row![
                 text("Current Episode: "),
-                column![text("TITLE"), text("S 2 E 2")]
+                column![text("TITLE"), text("---")]
             ]
         },
-        latest_episode_block
+        latest_episode_block,
+        upcoming_episode_block
     ]
     .width(Length::FillPortion(3));
     poster_row = poster_row.push(details_block);
-    column![
-        button("back").on_press(Message::FilterChanged(Filter::Bookmarks)),
-        row![
-            text(&movie.name).size(FONT_SIZE_HEADER),
-            text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
-        ],
-        poster_row
-    ]
-    .into()
+    poster_row
 }

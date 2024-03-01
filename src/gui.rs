@@ -4,7 +4,7 @@ use crate::filter::Filter;
 use crate::id::{EpisodeId, MovieIndex};
 use crate::movie::TmdbMovie;
 use crate::save::SavedState;
-use crate::state::State;
+use crate::state::{InputKind, State};
 use crate::view;
 use iced::alignment::{self, Alignment};
 use iced::keyboard;
@@ -80,7 +80,7 @@ impl Application for App {
         match self {
             App::Loading => loading_message(),
             App::Loaded(State {
-                input_value,
+                input_caches,
                 filter,
                 movies,
                 movie_details,
@@ -91,7 +91,7 @@ impl Application for App {
                 ..
             }) => {
                 let header = view_header();
-                let input = view_input(input_value);
+                let input = view_input(&input_caches[InputKind::SearchField]);
                 let controls = view_controls(movies, *filter);
                 let body = match filter {
                     Filter::Search => {
@@ -120,7 +120,11 @@ impl Application for App {
                                         !bookmark.finished
                                     }
                                 })
-                                .filter(|bookmark| bookmark.movie.matches_filter(&input_value))
+                                .filter(|bookmark| {
+                                    bookmark
+                                        .movie
+                                        .matches_filter(&input_caches[InputKind::SearchField])
+                                })
                                 .collect();
                             let chunk_size = 3;
                             let chunks = bookmarks.chunks_exact(chunk_size);
@@ -166,7 +170,13 @@ impl Application for App {
                         let poster = movie_posters.get(id);
                         let current_episode_details =
                             episode_details.get(&EpisodeId(*id, bookmark.current_episode.clone()));
-                        view::view_details(movie, details, poster, current_episode_details)
+                        view::view_details(
+                            movie,
+                            input_caches,
+                            details,
+                            poster,
+                            current_episode_details,
+                        )
                     }
                 };
                 let content = match filter {
@@ -264,8 +274,8 @@ fn view_header() -> Element<'static, Message> {
 fn view_input(input: &str) -> Element<'static, Message> {
     text_input("Search", input)
         .id(INPUT_ID.clone())
-        .on_input(Message::InputChanged)
-        .on_submit(Message::InputSubmit(input.to_string()))
+        .on_input(|input| Message::InputChanged(InputKind::SearchField, input))
+        .on_submit(Message::InputSubmit(InputKind::SearchField))
         .padding(15)
         .size(FONT_SIZE)
         .into()

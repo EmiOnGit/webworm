@@ -7,16 +7,50 @@ use crate::link::BookmarkLinkBox;
 use crate::message::{Message, ShiftPressed};
 use crate::save::SavedState;
 use std::collections::HashMap;
+use std::ops::{Index, IndexMut};
 
 use crate::movie::TmdbMovie;
 use crate::movie_details::{EpisodeDetails, MovieDetails};
 use crate::tmdb::TmdbConfig;
 
 use crate::bookmark::{Bookmark, Poster};
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub enum InputKind {
+    SearchField,
+    EpisodeInput,
+    SeasonInput,
+    LinkInput,
+}
+impl InputKind {
+    pub fn index(&self) -> usize {
+        match self {
+            InputKind::SearchField => 0,
+            InputKind::EpisodeInput => 1,
+            InputKind::SeasonInput => 2,
+            InputKind::LinkInput => 3,
+        }
+    }
+}
+#[derive(Clone, Debug, Default)]
+pub struct InputCaches([String; 4]);
+
+impl IndexMut<InputKind> for InputCaches {
+    fn index_mut(&mut self, index: InputKind) -> &mut Self::Output {
+        &mut self.0[index.index()]
+    }
+}
+
+impl Index<InputKind> for InputCaches {
+    type Output = String;
+
+    fn index(&self, index: InputKind) -> &Self::Output {
+        &self.0[index.index()]
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct State {
-    pub input_value: String,
+    pub input_caches: InputCaches,
     pub filter: Filter,
     pub movies: Vec<TmdbMovie>,
     pub movie_details: HashMap<MovieId, MovieDetails>,
@@ -57,5 +91,13 @@ impl State {
         self.bookmarks
             .iter()
             .find(|bookmark| bookmark.movie.id == movie_id)
+    }
+    pub(crate) fn set_detail_input_caches(&mut self, movie_id: MovieId) {
+        let Some(bookmark) = self.get_bookmark(movie_id) else {
+            return;
+        };
+        let episode = bookmark.current_episode.clone();
+        self.input_caches[InputKind::EpisodeInput] = episode.episode().to_string();
+        self.input_caches[InputKind::SeasonInput] = episode.season().to_string();
     }
 }

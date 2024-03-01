@@ -4,12 +4,12 @@ use tracing::{debug, info, warn};
 use crate::{
     bookmark::{Bookmark, Poster},
     filter::Filter,
-    id::MovieIndex,
+    id::{EpisodeId, MovieIndex},
     link::BookmarkLinkBox,
-    message::{LinkMessage, Message, ShiftPressed},
+    message::{BookmarkMessage, LinkMessage, Message, ShiftPressed},
     save::load_poster,
-    state::State,
-    tmdb::{send_request, RequestType, TmdbConfig},
+    state::{InputKind, State},
+    tmdb::{self, RequestType, TmdbConfig},
 };
 pub struct StateUpdate {
     command: Command<Message>,
@@ -32,6 +32,14 @@ impl StateUpdate {
     pub fn command(self) -> Command<Message> {
         self.command
     }
+    pub fn add_command(self, command: Command<Message>) -> Self {
+        let save = self.save;
+        let old = self.command();
+        StateUpdate {
+            command: Command::batch([old, command]),
+            save,
+        }
+    }
 }
 impl Default for StateUpdate {
     fn default() -> Self {
@@ -53,26 +61,69 @@ impl State {
                 self.saving = false;
                 update = StateUpdate::default().just_saved().into();
             }
-            Message::InputChanged(v) => self.input_value = v,
-            Message::InputSubmit(input) => match self.filter {
-                Filter::Search => {
-                    let request = RequestType::TvSearch { query: input };
-                    update = self.update_state(Message::ExecuteRequest(request)).into();
+            Message::InputChanged(kind, input) => self.input_caches[kind] = input,
+            Message::InputSubmit(input) => match input {
+                InputKind::SearchField => match self.filter {
+                    Filter::Search => {
+                        let request = RequestType::TvSearch {
+                            query: self.input_caches[input].clone(),
+                        };
+                        update = self.update_state(Message::ExecuteRequest(request)).into();
+                    }
+                    Filter::Details(_) => warn!("Input submit in details view received"),
+                    Filter::Bookmarks | Filter::Completed => {
+                        info!("ignore input submit in current filter")
+                    }
+                },
+                InputKind::EpisodeInput => {
+                    let Filter::Details(movie_id) = self.filter else {
+                        return StateUpdate::default();
+                    };
+                    update = self
+                        .update_state(Message::BookmarkMessage(
+                            movie_id,
+                            BookmarkMessage::SetE(
+                                self.input_caches[input].clone(),
+                                self.movie_details.get(&movie_id).cloned(),
+                            ),
+                        ))
+                        .into();
                 }
-                Filter::Details(_) => warn!("Input submit in details view received"),
-                Filter::Bookmarks | Filter::Completed => {
-                    info!("ignore input submit in current filter")
+                InputKind::SeasonInput => {
+                    let Filter::Details(movie_id) = self.filter else {
+                        return StateUpdate::default();
+                    };
+                    update = self
+                        .update_state(Message::BookmarkMessage(
+                            movie_id,
+                            BookmarkMessage::SetS(
+                                self.input_caches[input].clone(),
+                                self.movie_details.get(&movie_id).cloned(),
+                            ),
+                        ))
+                        .into();
                 }
+                InputKind::LinkInput => todo!(),
             },
 
             Message::ExecuteRequest(request) => {
                 let config = self.config();
+                let mut send_request = request.clone();
                 let cmd = if let RequestType::Poster { id, path } = request {
                     Command::perform(load_poster(id, path.clone(), config), move |data| {
                         Message::RequestPoster(id, data.ok())
                     })
                 } else {
-                    Command::perform(send_request(config, request.clone()), |data| {
+                    if let RequestType::EpisodeDetails { id } = &request {
+                        if let Some(details) = self.movie_details.get(&id.0) {
+                            let fixed_episode =
+                                EpisodeId(id.0, details.reformat_for_request(id.1.clone()));
+                            let reformated_request =
+                                RequestType::EpisodeDetails { id: fixed_episode };
+                            send_request = reformated_request;
+                        }
+                    };
+                    Command::perform(tmdb::send_request(config, send_request), |data| {
                         Message::RequestResponse(data.ok(), request)
                     })
                 };
@@ -104,6 +155,7 @@ impl State {
                 self.filter = new_filter;
                 // Load the current episode details if not already loaded
                 if let Filter::Details(movie_id) = new_filter {
+                    self.set_detail_input_caches(movie_id);
                     let Some(bookmark) = self.get_bookmark(movie_id) else {
                         return StateUpdate::default();
                     };
@@ -146,7 +198,17 @@ impl State {
             Message::BookmarkMessage(id, message) => {
                 if let Some(bookmark) = self.bookmarks.with_id_mut(id) {
                     let cmd = bookmark.apply(message);
-                    update = StateUpdate::new(cmd).into();
+                    let current_episode = bookmark.current_episode_id();
+                    let new_update = if !self.episode_details.contains_key(&current_episode) {
+                        let msg = Message::ExecuteRequest(RequestType::EpisodeDetails {
+                            id: current_episode,
+                        });
+                        let state = self.update_state(msg);
+                        state.add_command(cmd)
+                    } else {
+                        StateUpdate::new(cmd)
+                    };
+                    update = new_update.into();
                 } else {
                     warn!("bookmark message received, that couldn't be applied. Mes: {message:?} movie_id: {id} Bookmarks: {bookmarks:?}",message=message, id=id,bookmarks=&self.bookmarks);
                 }

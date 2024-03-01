@@ -13,6 +13,8 @@ pub struct MovieDetails {
     number_of_episodes: usize,
     last_episode_to_air: Option<EpisodeDetails>,
     next_episode_to_air: Option<EpisodeDetails>,
+    #[serde(skip)]
+    fixed: bool,
 }
 impl MovieDetails {
     /// Sometimes shows encode the `SeasonEpisode` to not have resetting episodes counts.
@@ -52,6 +54,7 @@ impl MovieDetails {
                     error!("last_episode_to_air: {last_episode_to_air:?}, episodes_before_season: {episodes_before_season}, seasons: {:?}", self.seasons);
                     panic!()
                 };
+                self.fixed = true;
                 last_episode_to_air.episode.episode_number = episode_number;
             }
         }
@@ -77,44 +80,70 @@ impl MovieDetails {
                     .filter(|s| !s.name.contains("Extras") && !s.name.contains("Specials"))
                     .map(|s| s.episode_count)
                     .sum();
+                self.fixed = true;
                 next_episode_to_air.episode.episode_number -= episodes_before_season;
             }
         }
     }
-    pub fn as_total_episodes(&self, episode: &SeasonEpisode) -> TotalEpisode {
-        let sum_before: usize = self
+    pub fn reformat_for_request(&self, mut episode: Episode) -> Episode {
+        if !self.fixed {
+            return episode;
+        }
+        let episodes_before_season: usize = self
             .seasons
             .iter()
-            .filter(|season| {
-                season.season_number < episode.season_number && !season.name.contains("Specials")
-            })
+            .filter(|s| s.season_number < episode.season())
+            .filter(|s| !s.name.contains("Extras") && !s.name.contains("Specials"))
             .map(|s| s.episode_count)
             .sum();
-        error!("sum before {}", sum_before);
-        error!("seasons: {:?}", self.seasons);
-        TotalEpisode {
-            episode: sum_before + episode.episode_number,
+        episode.set_episode(episode.episode() + episodes_before_season);
+        episode
+    }
+
+    pub fn as_total_episodes<E: Into<Episode> + Clone>(&self, episode: &E) -> TotalEpisode {
+        let episode: Episode = episode.clone().into();
+        match episode {
+            Episode::Seasonal(episode) => {
+                let sum_before: usize = self
+                    .seasons
+                    .iter()
+                    .filter(|season| {
+                        season.season_number < episode.season_number
+                            && !season.name.contains("Specials")
+                    })
+                    .map(|s| s.episode_count)
+                    .sum();
+                TotalEpisode {
+                    episode: sum_before + episode.episode_number,
+                }
+            }
+            Episode::Total(episode) => episode,
         }
     }
-    pub fn as_seasonal_episode(&self, episode: &TotalEpisode) -> SeasonEpisode {
-        let mut episode = episode.episode;
-        let mut season_number = 1;
-        for season in &self.seasons {
-            if season.name.contains("Specials") {
-                continue;
-            }
-            if season.episode_count > episode {
-                return SeasonEpisode {
+    pub fn as_seasonal_episode<E: Into<Episode> + Clone>(&self, episode: &E) -> SeasonEpisode {
+        let episode: Episode = episode.clone().into();
+        match episode {
+            Episode::Seasonal(episode) => episode,
+            Episode::Total(TotalEpisode { mut episode }) => {
+                let mut season_number = 1;
+                for season in &self.seasons {
+                    if season.name.contains("Specials") {
+                        continue;
+                    }
+                    if season.episode_count > episode {
+                        return SeasonEpisode {
+                            episode_number: episode,
+                            season_number,
+                        };
+                    }
+                    season_number = season.season_number;
+                    episode -= season.episode_count;
+                }
+                SeasonEpisode {
                     episode_number: episode,
                     season_number,
-                };
+                }
             }
-            season_number = season.season_number;
-            episode -= season.episode_count;
-        }
-        SeasonEpisode {
-            episode_number: episode,
-            season_number,
         }
     }
     pub fn previous_episode(&self, episode: Episode) -> Episode {
@@ -153,6 +182,9 @@ impl MovieDetails {
             }),
         }
     }
+    pub(crate) fn seasons(&self) -> &[Season] {
+        &self.seasons
+    }
     pub fn next_episode(&self, mut episode: Episode) -> Episode {
         let Some(last_published) = self.last_published() else {
             return episode;
@@ -187,27 +219,13 @@ impl MovieDetails {
         }
         episode
     }
-    // / Tries to fetch the last published episode.
-    // / In case the last episode was not given, the `id` from the movie is used
+    /// Tries to fetch the last published episode.
+    /// In case the last episode was not given, the `id` from the movie is used
     pub fn last_published(&self) -> Option<EpisodeDetails> {
-        if let Some(last) = &self.last_episode_to_air {
-            Some(last.clone())
-        } else if let Some(next) = &self.next_episode_to_air {
-            let mut last = next.clone();
-            if last.episode.episode_number > 1 {
-                last.episode.episode_number -= 1;
-                Some(last)
-            } else if last.episode.season_number == 1 {
-                Some(last)
-            } else {
-                last.episode.season_number -= 1;
-                last.episode.episode_number =
-                    self.seasons[last.episode.season_number].episode_count;
-                Some(last)
-            }
-        } else {
-            None
-        }
+        self.last_episode_to_air.clone()
+    }
+    pub fn next_episode_to_air(&self) -> Option<EpisodeDetails> {
+        self.next_episode_to_air.clone()
     }
 }
 
@@ -215,17 +233,23 @@ impl MovieDetails {
 pub struct Season {
     id: usize,
     name: String,
-    episode_count: usize,
+    pub episode_count: usize,
     season_number: usize,
     overview: String,
     poster_path: Option<String>,
 }
+impl Season {
+    /// Returns the season number.
+    pub(crate) fn number(&self) -> usize {
+        self.season_number
+    }
+}
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct EpisodeDetails {
-    pub id: usize,
     #[serde(flatten)]
     pub episode: SeasonEpisode,
     pub name: String,
+    pub air_date: Option<String>,
     pub overview: String,
 }
 #[derive(Eq, Debug, PartialEq, Serialize, Hash, Deserialize, Clone)]
@@ -244,10 +268,57 @@ impl From<TotalEpisode> for Episode {
     }
 }
 impl Episode {
+    pub(crate) fn episode(&self) -> usize {
+        match self {
+            Episode::Seasonal(e) => e.episode_number,
+            Episode::Total(e) => e.episode,
+        }
+    }
+    pub(crate) fn season(&self) -> usize {
+        match self {
+            Episode::Seasonal(e) => e.season_number,
+            Episode::Total(_e) => 1,
+        }
+    }
     pub fn as_info_str(&self) -> String {
         match self {
             Episode::Seasonal(e) => format!("{}E · {}S", e.episode_number, e.season_number),
             Episode::Total(e) => format!("{}E", e.episode),
+        }
+    }
+    /// Increments the episode by one.
+    /// It should be checked if the episode exists beforehand.
+    pub(crate) fn next_episode(&mut self) {
+        match self {
+            Episode::Seasonal(e) => e.episode_number += 1,
+            Episode::Total(e) => e.episode += 1,
+        }
+    }
+
+    /// Decrement the episode by one.
+    /// This method saturates at 0 instead of panicing
+    pub(crate) fn previous_episode(&mut self) {
+        match self {
+            Episode::Seasonal(e) => e.episode_number = e.episode_number.saturating_sub(1),
+            Episode::Total(e) => e.episode = e.episode.saturating_sub(1),
+        }
+    }
+    pub(crate) fn set_episode(&mut self, episode: usize) {
+        match self {
+            Episode::Seasonal(e) => e.episode_number = episode,
+            Episode::Total(e) => e.episode = episode,
+        }
+    }
+    pub(crate) fn set_season(&mut self, season: usize) {
+        match self {
+            Episode::Seasonal(e) => e.season_number = season,
+            Episode::Total(e) => {
+                info!("upgrade total episode to seasonal since season was set");
+                *self = Episode::Seasonal(SeasonEpisode {
+                    episode_number: e.episode,
+                    season_number: 2,
+                });
+            }
         }
     }
 }

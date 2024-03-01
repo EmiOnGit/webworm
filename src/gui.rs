@@ -130,12 +130,10 @@ impl Application for App {
                             let remainder_row =
                                 (0..chunk_size).map(|i| remainder.get(i)).map(|bookmark| {
                                     if let Some(bookmark) = bookmark {
-                                        bookmark
-                                            .card_view(
-                                                movie_details.get(&bookmark.movie.id),
-                                                movie_posters.get(&bookmark.movie.id),
-                                            )
-                                            .into()
+                                        bookmark.card_view(
+                                            movie_details.get(&bookmark.movie.id),
+                                            movie_posters.get(&bookmark.movie.id),
+                                        )
                                     } else {
                                         Space::with_width(Length::Fill).into()
                                     }

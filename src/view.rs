@@ -115,11 +115,11 @@ pub(crate) fn view_details(
             text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
         ],
         details_view_info(details, poster, current),
-        details_view_edit(input_caches)
+        details_view_edit(input_caches, movie.id)
     ]
     .into()
 }
-fn details_view_edit(input_caches: &InputCaches) -> Column<'static, Message> {
+fn details_view_edit(input_caches: &InputCaches, id: MovieId) -> Column<'static, Message> {
     let episode = &input_caches[InputKind::EpisodeInput];
     let current_episode_row = row![
         text("Current Episode"),
@@ -141,7 +141,13 @@ fn details_view_edit(input_caches: &InputCaches) -> Column<'static, Message> {
         .width(Length::Fill)
         .padding(15)
         .size(FONT_SIZE);
-    column![current_episode_row, current_season_row, link_input]
+    let remove_bookmark = button("X").on_press(Message::RemoveBookmark(id));
+    column![
+        current_episode_row,
+        current_season_row,
+        link_input,
+        remove_bookmark
+    ]
 }
 fn details_view_info(
     details: Option<&MovieDetails>,

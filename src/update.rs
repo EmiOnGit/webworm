@@ -204,6 +204,10 @@ impl State {
                 };
                 debug!("Remove bookmark {:?}", &self.bookmarks[index]);
                 self.bookmarks.remove(index);
+                if Filter::Details(id) == self.filter {
+                    let cmd = self.update_state(Message::FilterChanged(Filter::Bookmarks));
+                    update = cmd.into();
+                }
             }
             Message::BookmarkMessage(id, message) => {
                 if let Some(bookmark) = self.bookmarks.with_id_mut(id) {

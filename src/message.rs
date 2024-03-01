@@ -68,9 +68,5 @@ pub enum ShiftPressed {
 }
 #[derive(Clone, Debug)]
 pub enum LinkMessage {
-    LinkInputSubmit,
     LinkToClipboard(Option<MovieDetails>, ShiftPressed),
-
-    LinkInputChanged(String),
-    RemoveLink,
 }

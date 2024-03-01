@@ -92,6 +92,7 @@ impl Bookmark {
                     warn!("Tried to parse {episode} as a episode when only numbers are allowed");
                     return Command::none();
                 };
+                self.finished = false;
                 match self.sync_mode {
                     SyncMode::NoSync => self.current_episode.set_episode(episode),
                     SyncMode::Tmdb => {
@@ -136,6 +137,7 @@ impl Bookmark {
                     return Command::none();
                 };
 
+                self.finished = false;
                 match self.sync_mode {
                     SyncMode::NoSync => self.current_episode.set_season(new_season),
                     SyncMode::Tmdb => {

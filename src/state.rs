@@ -3,7 +3,7 @@ use tracing::debug;
 
 use crate::filter::Filter;
 use crate::id::{EpisodeId, MovieId};
-use crate::link::BookmarkLinkBox;
+use crate::link::Link;
 use crate::message::{Message, ShiftPressed};
 use crate::save::SavedState;
 use std::collections::HashMap;
@@ -56,7 +56,7 @@ pub struct State {
     pub movie_details: HashMap<MovieId, MovieDetails>,
     pub movie_posters: HashMap<MovieId, Poster>,
     pub episode_details: HashMap<EpisodeId, EpisodeDetails>,
-    pub links: HashMap<MovieId, BookmarkLinkBox>,
+    pub links: HashMap<MovieId, Link>,
     pub bookmarks: Vec<Bookmark>,
     pub dirty: bool,
     pub saving: bool,
@@ -97,7 +97,13 @@ impl State {
             return;
         };
         let episode = bookmark.current_episode.clone();
+        let link = self
+            .links
+            .get(&movie_id)
+            .map(|link| link.string_link.clone())
+            .unwrap_or_default();
         self.input_caches[InputKind::EpisodeInput] = episode.episode().to_string();
         self.input_caches[InputKind::SeasonInput] = episode.season().to_string();
+        self.input_caches[InputKind::LinkInput] = link;
     }
 }

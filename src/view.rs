@@ -6,9 +6,8 @@ use iced::{Alignment, Element};
 
 use crate::bookmark::{Bookmark, Poster};
 use crate::filter::Filter;
-use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER, INPUT_LINK_ID};
+use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER};
 use crate::id::MovieId;
-use crate::link::BookmarkLinkBox;
 use crate::message::{LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, EpisodeDetails, MovieDetails};
@@ -18,7 +17,6 @@ impl Bookmark {
     pub fn card_view<'a>(
         &'a self,
         details: Option<&MovieDetails>,
-        link: &'a BookmarkLinkBox,
         poster: Option<&'a Poster>,
     ) -> Element<Message> {
         let picture_row = row![
@@ -58,28 +56,6 @@ impl Bookmark {
             latest
         ]
         .into()
-    }
-}
-impl BookmarkLinkBox {
-    fn link_view(&self, id: MovieId, details: Option<&MovieDetails>) -> Element<Message> {
-        match &self {
-            BookmarkLinkBox::Link(l) => iced::widget::button(l.string_link.as_str())
-                .on_press(Message::LinkMessage(
-                    id,
-                    LinkMessage::LinkToClipboard(details.cloned(), ShiftPressed::Unknown),
-                ))
-                .style(theme::Button::Secondary)
-                .width(Length::Fill)
-                .into(),
-            BookmarkLinkBox::Input(s) => text_input("Link:", s)
-                .id(INPUT_LINK_ID.clone())
-                .on_input(move |s| Message::LinkMessage(id, LinkMessage::LinkInputChanged(s)))
-                .on_submit(Message::LinkMessage(id, LinkMessage::LinkInputSubmit))
-                .width(Length::Fill)
-                .padding(15)
-                .size(FONT_SIZE)
-                .into(),
-        }
     }
 }
 impl TmdbMovie {
@@ -139,20 +115,11 @@ pub(crate) fn view_details(
             text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
         ],
         details_view_info(details, poster, current),
-        details_view_edit(movie.id, current, details, input_caches)
+        details_view_edit(input_caches)
     ]
     .into()
 }
-fn details_view_edit(
-    id: MovieId,
-    current: Option<&EpisodeDetails>,
-    details: Option<&MovieDetails>,
-    input_caches: &InputCaches,
-) -> Column<'static, Message> {
-    let Some(current) = current else {
-        return column![];
-    };
-    let details = details.cloned();
+fn details_view_edit(input_caches: &InputCaches) -> Column<'static, Message> {
     let episode = &input_caches[InputKind::EpisodeInput];
     let current_episode_row = row![
         text("Current Episode"),
@@ -167,8 +134,14 @@ fn details_view_edit(
             .on_submit(Message::InputSubmit(InputKind::SeasonInput))
             .on_input(|input| { Message::InputChanged(InputKind::SeasonInput, input) })
     ];
-
-    column![current_episode_row, current_season_row]
+    let link = &input_caches[InputKind::LinkInput];
+    let link_input = text_input("Link:", link)
+        .on_submit(Message::InputSubmit(InputKind::LinkInput))
+        .on_input(|input| Message::InputChanged(InputKind::LinkInput, input))
+        .width(Length::Fill)
+        .padding(15)
+        .size(FONT_SIZE);
+    column![current_episode_row, current_season_row, link_input]
 }
 fn details_view_info(
     details: Option<&MovieDetails>,

@@ -11,7 +11,7 @@ use crate::{
     bookmark::Bookmark,
     gui::App,
     id::MovieId,
-    link::BookmarkLinkBox,
+    link::Link,
     message::Message,
     state::State,
     tmdb::{self, RequestType, TmdbConfig},
@@ -20,7 +20,7 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
     pub bookmarks: Vec<Bookmark>,
-    pub links: HashMap<MovieId, BookmarkLinkBox>,
+    pub links: HashMap<MovieId, Link>,
     #[serde(skip)]
     pub tmdb_config: Option<TmdbConfig>,
 }
@@ -144,14 +144,7 @@ pub async fn load_poster(id: MovieId, url: String, config: TmdbConfig) -> anyhow
     }
 }
 impl App {
-    pub fn as_loaded(&mut self, mut state: SavedState) -> Command<Message> {
-        for bookmark in &state.bookmarks {
-            let id = bookmark.movie.id;
-            state
-                .links
-                .entry(id)
-                .or_insert(BookmarkLinkBox::Input(String::new()));
-        }
+    pub fn as_loaded(&mut self, state: SavedState) -> Command<Message> {
         // set self to be loaded
         *self = App::Loaded(State {
             tmdb_config: state.tmdb_config,
@@ -175,7 +168,11 @@ impl App {
             .bookmarks
             .iter()
             .filter_map(|bookmark| {
-                bookmark.movie.poster_path.as_ref().map(|poster_path| RequestType::Poster {
+                bookmark
+                    .movie
+                    .poster_path
+                    .as_ref()
+                    .map(|poster_path| RequestType::Poster {
                         id: bookmark.movie.id,
                         path: poster_path.clone(),
                     })

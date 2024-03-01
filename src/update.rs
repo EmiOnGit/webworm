@@ -1,11 +1,11 @@
 use iced::{widget, window, Command};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     bookmark::{Bookmark, Poster},
     filter::Filter,
     id::{EpisodeId, MovieIndex},
-    link::BookmarkLinkBox,
+    link::Link,
     message::{BookmarkMessage, LinkMessage, Message, ShiftPressed},
     save::load_poster,
     state::{InputKind, State},
@@ -69,6 +69,7 @@ impl State {
                             query: self.input_caches[input].clone(),
                         };
                         update = self.update_state(Message::ExecuteRequest(request)).into();
+                        self.input_caches[input] = String::new();
                     }
                     Filter::Details(_) => warn!("Input submit in details view received"),
                     Filter::Bookmarks | Filter::Completed => {
@@ -103,7 +104,18 @@ impl State {
                         ))
                         .into();
                 }
-                InputKind::LinkInput => todo!(),
+                InputKind::LinkInput => {
+                    let Filter::Details(movie_id) = self.filter else {
+                        return StateUpdate::default();
+                    };
+                    let input = &self.input_caches[input];
+                    let link = Link::new(input);
+                    let Ok(link) = link else {
+                        error!("{input} is not a valid link. Error {link:?}");
+                        return StateUpdate::default();
+                    };
+                    self.links.insert(movie_id, link);
+                }
             },
 
             Message::ExecuteRequest(request) => {
@@ -180,8 +192,6 @@ impl State {
                     warn!("Tried to add a bookmark for a movie, which is currently not loaded");
                     return StateUpdate::default();
                 };
-                self.links
-                    .insert(movie.id, BookmarkLinkBox::Input(String::new()));
                 self.bookmarks.push(Bookmark::from(movie));
             }
             Message::RemoveBookmark(id) => {
@@ -213,10 +223,7 @@ impl State {
                     warn!("bookmark message received, that couldn't be applied. Mes: {message:?} movie_id: {id} Bookmarks: {bookmarks:?}",message=message, id=id,bookmarks=&self.bookmarks);
                 }
             }
-            Message::LinkMessage(id, mut message) => {
-                if let LinkMessage::LinkToClipboard(_, ref mut shift) = message {
-                    *shift = self.shift_pressed.clone();
-                };
+            Message::LinkMessage(id, message) => {
                 let Some(bookmark) = self.bookmarks.with_id_mut(id) else {
                     warn!(
                         "couldn't find bookmark which corresponds to link at position {}",
@@ -224,11 +231,15 @@ impl State {
                     );
                     return StateUpdate::default();
                 };
-                let Some(link) = self.links.with_id_mut(id) else {
-                    warn!("couldn't find link at position {}", id);
-                    return StateUpdate::default();
+                let cmd = match message {
+                    LinkMessage::LinkToClipboard(details, shift) => {
+                        let Some(link) = self.links.with_id_mut(id) else {
+                            warn!("couldn't find link at position {}", id);
+                            return StateUpdate::default();
+                        };
+                        link.to_clipboard(bookmark, details, shift)
+                    }
                 };
-                let cmd = link.apply(bookmark, message);
                 update = StateUpdate::new(cmd).into();
             }
             Message::TabPressed => {

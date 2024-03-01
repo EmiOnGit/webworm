@@ -5,8 +5,8 @@ use tracing::{debug, error, warn};
 
 use crate::{
     bookmark::Bookmark,
-    message::{BookmarkMessage, LinkMessage, Message, ShiftPressed},
-    movie_details::Episode,
+    message::{BookmarkMessage, Message, ShiftPressed},
+    movie_details::{Episode, MovieDetails},
 };
 
 const EPISODE_PLACEHOLDER: &str = "{e}";
@@ -117,84 +117,47 @@ pub enum LinkError {
     ToManySeasons,
     ToManyEpisodes,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum BookmarkLinkBox {
-    Link(Link),
-    Input(String),
-}
-impl BookmarkLinkBox {
-    pub fn apply(&mut self, bookmark: &mut Bookmark, message: LinkMessage) -> Command<Message> {
-        match message {
-            LinkMessage::LinkInputSubmit => {
-                if let BookmarkLinkBox::Input(s) = self {
-                    let link = Link::new(s);
-                    debug!("Link was submitted and parsed to {:?}", link);
-                    if let Ok(link) = link {
-                        *self = BookmarkLinkBox::Link(link);
-                    } else {
-                        error!("{:?} is not a valid link. Error {:?}", s, link)
-                    }
+impl Link {
+    pub fn to_clipboard(
+        &mut self,
+        bookmark: &mut Bookmark,
+        details: Option<MovieDetails>,
+        shift: ShiftPressed,
+    ) -> Command<Message> {
+        let url = match &bookmark.current_episode {
+            Episode::Seasonal(e) => {
+                if self.has_season() {
+                    self.url(e.episode_number, e.season_number)
                 } else {
-                    warn!(
-                        "received a LinkInputSubmit message the bookmark has no LinkInput {:?}",
-                        self
-                    );
+                    let Some(details) = &details else {
+                        error!("load details before copying to clipboard");
+                        return Command::none();
+                    };
+                    self.url(details.as_total_episodes(e).episode, 1)
                 }
             }
-            LinkMessage::LinkToClipboard(details, shift) => {
-                let BookmarkLinkBox::Link(link) = &self else {
-                    return Command::none();
-                };
-                let url = match &bookmark.current_episode {
-                    Episode::Seasonal(e) => {
-                        if link.has_season() {
-                            link.url(e.episode_number, e.season_number)
-                        } else {
-                            let Some(details) = &details else {
-                                error!("load details before copying to clipboard");
-                                return Command::none();
-                            };
-                            link.url(details.as_total_episodes(e).episode, 1)
-                        }
-                    }
-                    Episode::Total(e) => {
-                        if link.has_season() {
-                            let Some(details) = &details else {
-                                error!("load details before copying to clipboard");
-                                return Command::none();
-                            };
-                            let e = details.as_seasonal_episode(e);
-                            link.url(e.episode_number, e.season_number)
-                        } else {
-                            link.url(e.episode, 1)
-                        }
-                    }
-                };
-                debug!("copied {} to clipboard", &url);
-                return if shift == ShiftPressed::True {
-                    debug!("Since shift was pressed the bookmark is not increased");
-                    Command::batch([clipboard::write::<Message>(url)])
+            Episode::Total(e) => {
+                if self.has_season() {
+                    let Some(details) = &details else {
+                        error!("load details before copying to clipboard");
+                        return Command::none();
+                    };
+                    let e = details.as_seasonal_episode(e);
+                    self.url(e.episode_number, e.season_number)
                 } else {
-                    Command::batch([
-                        bookmark.apply(BookmarkMessage::IncrE(details)),
-                        clipboard::write::<Message>(url),
-                    ])
-                };
-            }
-            LinkMessage::LinkInputChanged(new_input) => {
-                if let BookmarkLinkBox::Input(s) = self {
-                    *s = new_input;
+                    self.url(e.episode, 1)
                 }
             }
-            LinkMessage::RemoveLink => {
-                *self = BookmarkLinkBox::Input(String::new());
-            }
+        };
+        debug!("copied {} to clipboard", &url);
+        if shift == ShiftPressed::True {
+            debug!("Since shift was pressed the bookmark is not increased");
+            Command::batch([clipboard::write::<Message>(url)])
+        } else {
+            Command::batch([
+                bookmark.apply(BookmarkMessage::IncrE(details)),
+                clipboard::write::<Message>(url),
+            ])
         }
-        Command::none()
-    }
-}
-impl Default for BookmarkLinkBox {
-    fn default() -> Self {
-        BookmarkLinkBox::Input(String::new())
     }
 }

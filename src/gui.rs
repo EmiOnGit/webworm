@@ -23,9 +23,8 @@ use crate::message::{empty_message, loading_message, Message, ShiftPressed};
 
 const TITLE_NAME: &str = "Webworm";
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
-pub static INPUT_LINK_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
-pub static FONT_SIZE_HEADER: u16 = 30;
-pub static FONT_SIZE: u16 = 18;
+pub(crate) static FONT_SIZE_HEADER: u16 = 30;
+pub(crate) static FONT_SIZE: u16 = 18;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
 
 #[derive(Debug)]
@@ -86,7 +85,6 @@ impl Application for App {
                 movie_details,
                 movie_posters,
                 episode_details,
-                links,
                 bookmarks,
                 ..
             }) => {
@@ -135,7 +133,6 @@ impl Application for App {
                                         bookmark
                                             .card_view(
                                                 movie_details.get(&bookmark.movie.id),
-                                                links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),
                                             )
                                             .into()
@@ -149,7 +146,6 @@ impl Application for App {
                                         bookmarks.iter().map(|bookmark| {
                                             bookmark.card_view(
                                                 movie_details.get(&bookmark.movie.id),
-                                                links.get(&bookmark.movie.id).unwrap(),
                                                 movie_posters.get(&bookmark.movie.id),
                                             )
                                         })

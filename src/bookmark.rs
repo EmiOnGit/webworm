@@ -177,6 +177,13 @@ impl Bookmark {
                     }
                 }
             }
+            BookmarkMessage::ToggleSync => {
+                match self.sync_mode {
+                    SyncMode::NoSync => self.sync_mode = SyncMode::Tmdb,
+                    SyncMode::Tmdb => self.sync_mode = SyncMode::NoSync,
+                }
+                info!("Toggle sync mode of bookmark with id {}", self.movie.id);
+            }
         }
         Command::none()
     }

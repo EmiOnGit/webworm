@@ -58,6 +58,7 @@ pub enum BookmarkMessage {
     DecrE(Option<MovieDetails>),
     SetE(String, Option<MovieDetails>),
     SetS(String, Option<MovieDetails>),
+    ToggleSync,
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum ShiftPressed {

@@ -3,6 +3,7 @@ use std::iter::once;
 use crate::filter::Filter;
 use crate::id::{EpisodeId, MovieIndex};
 use crate::movie::TmdbMovie;
+use crate::movie_details::EpisodeDetails;
 use crate::save::SavedState;
 use crate::state::{InputKind, State};
 use crate::view;
@@ -162,8 +163,23 @@ impl Application for App {
                         let movie = &bookmark.movie;
                         let details = movie_details.get(id);
                         let poster = movie_posters.get(id);
-                        let current_episode_details =
-                            episode_details.get(&EpisodeId(*id, bookmark.current_episode.clone()));
+                        let current_episode_details = episode_details
+                            .get(&EpisodeId(*id, bookmark.current_episode.clone()))
+                            .cloned()
+                            .or_else(|| {
+                                if let Some(details) = details {
+                                    let seasonal =
+                                        details.as_seasonal_episode(&bookmark.current_episode);
+                                    Some(EpisodeDetails {
+                                        episode: seasonal,
+                                        name: "".into(),
+                                        air_date: None,
+                                        overview: "".into(),
+                                    })
+                                } else {
+                                    None
+                                }
+                            });
                         view::view_details(
                             movie,
                             input_caches,

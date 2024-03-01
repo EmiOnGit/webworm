@@ -238,8 +238,10 @@ impl State {
                 let cmd = match message {
                     LinkMessage::LinkToClipboard(details, shift) => {
                         let Some(link) = self.links.with_id_mut(id) else {
-                            warn!("couldn't find link at position {}", id);
-                            return StateUpdate::default();
+                            info!("couldn't find link at position {}", id);
+                            return StateUpdate::new(
+                                bookmark.apply(BookmarkMessage::IncrE(details)),
+                            );
                         };
                         link.to_clipboard(bookmark, details, shift)
                     }

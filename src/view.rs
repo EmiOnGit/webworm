@@ -8,7 +8,7 @@ use crate::bookmark::{Bookmark, Poster};
 use crate::filter::Filter;
 use crate::gui::{icon, FONT_SIZE, FONT_SIZE_HEADER};
 use crate::id::MovieId;
-use crate::message::{LinkMessage, Message, ShiftPressed};
+use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
 use crate::movie_details::{Episode, EpisodeDetails, MovieDetails};
 use crate::state::{InputCaches, InputKind};
@@ -106,7 +106,7 @@ pub(crate) fn view_details(
     input_caches: &InputCaches,
     details: Option<&MovieDetails>,
     poster: Option<&Poster>,
-    current: Option<&EpisodeDetails>,
+    current: Option<EpisodeDetails>,
 ) -> Element<'static, Message> {
     column![
         button("back").on_press(Message::FilterChanged(Filter::Bookmarks)),
@@ -114,25 +114,32 @@ pub(crate) fn view_details(
             text(&movie.name).size(FONT_SIZE_HEADER),
             text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
         ],
-        details_view_info(details, poster, current),
+        details_view_info(details, poster, current.as_ref()),
         details_view_edit(input_caches, movie.id)
     ]
     .into()
 }
 fn details_view_edit(input_caches: &InputCaches, id: MovieId) -> Column<'static, Message> {
     let episode = &input_caches[InputKind::EpisodeInput];
-    let current_episode_row = row![
-        text("Current Episode"),
-        text_input("0", episode)
-            .on_submit(Message::InputSubmit(InputKind::EpisodeInput))
-            .on_input(|input| { Message::InputChanged(InputKind::EpisodeInput, input) })
-    ];
     let season = &input_caches[InputKind::SeasonInput];
-    let current_season_row = row![
-        text("Current Season"),
-        text_input("0", season)
-            .on_submit(Message::InputSubmit(InputKind::SeasonInput))
-            .on_input(|input| { Message::InputChanged(InputKind::SeasonInput, input) })
+    let current_progress_row = row![
+        text("Progress "),
+        Space::with_width(Length::Fixed(20.)),
+        column![
+            row![
+                text("Episode"),
+                text_input("0", episode)
+                    .on_submit(Message::InputSubmit(InputKind::EpisodeInput))
+                    .on_input(|input| { Message::InputChanged(InputKind::EpisodeInput, input) })
+            ],
+            row![
+                text("Season"),
+                text_input("0", season)
+                    .on_submit(Message::InputSubmit(InputKind::SeasonInput))
+                    .on_input(|input| { Message::InputChanged(InputKind::SeasonInput, input) })
+            ]
+        ],
+        button("LOCK").on_press(Message::BookmarkMessage(id, BookmarkMessage::ToggleSync))
     ];
     let link = &input_caches[InputKind::LinkInput];
     let link_input = text_input("Link:", link)
@@ -142,12 +149,7 @@ fn details_view_edit(input_caches: &InputCaches, id: MovieId) -> Column<'static,
         .padding(15)
         .size(FONT_SIZE);
     let remove_bookmark = button("X").on_press(Message::RemoveBookmark(id));
-    column![
-        current_episode_row,
-        current_season_row,
-        link_input,
-        remove_bookmark
-    ]
+    column![current_progress_row, link_input, remove_bookmark]
 }
 fn details_view_info(
     details: Option<&MovieDetails>,

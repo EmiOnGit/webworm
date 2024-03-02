@@ -17,7 +17,7 @@ pub struct Bookmark {
     pub current_episode: Episode,
     /// True if the current episode is already watched
     pub finished: bool,
-    sync_mode: SyncMode,
+    pub sync_mode: SyncMode,
 }
 /// Defines how the bookmark progress should be handled
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

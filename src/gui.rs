@@ -186,6 +186,7 @@ impl Application for App {
                             details,
                             poster,
                             current_episode_details,
+                            bookmark.sync_mode,
                         )
                     }
                 };

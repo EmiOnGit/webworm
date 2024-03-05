@@ -25,8 +25,9 @@ use crate::message::{empty_message, loading_message, Message, ShiftPressed};
 const TITLE_NAME: &str = "Webworm";
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 pub(crate) static FONT_SIZE_HEADER: u16 = 30;
-pub(crate) static FONT_SIZE: u16 = 18;
+pub(crate) static FONT_SIZE: u16 = 22;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
+const FONT: &[u8] = include_bytes!("../assets/MonaSans-Regular.ttf");
 
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -43,7 +44,10 @@ impl Application for App {
     fn new(_flags: ()) -> (App, Command<Message>) {
         (
             App::Loading,
-            Command::batch(vec![Command::perform(SavedState::load(), Message::Loaded)]),
+            Command::batch(vec![
+                iced::font::load(FONT).map(Message::FontLoaded),
+                Command::perform(SavedState::load(), Message::Loaded),
+            ]),
         )
     }
 

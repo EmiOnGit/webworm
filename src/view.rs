@@ -1,15 +1,16 @@
 use iced::alignment::Horizontal;
 use iced::theme::{self};
+use iced::widget::text::LineHeight;
 use iced::widget::{
     button, column, container, image, row, text, text_input, Column, Image, Row, Space,
 };
-use iced::Length;
 use iced::{Alignment, Element};
+use iced::{Font, Length};
 
 use crate::bookmark::{Bookmark, Poster, SyncMode};
 use crate::filter::Filter;
 use crate::gui::{FONT_SIZE, FONT_SIZE_HEADER};
-use crate::icons::Icon;
+use crate::icons::{Icon, ICON_SIZE};
 use crate::id::MovieId;
 use crate::message::{BookmarkMessage, LinkMessage, Message, ShiftPressed};
 use crate::movie::TmdbMovie;
@@ -30,9 +31,8 @@ impl Bookmark {
                     self.movie.id,
                     LinkMessage::LinkToClipboard(details.cloned(), ShiftPressed::Unknown)
                 ))
-                .width(Length::Fill)
+                .width(Length::Fixed(ICON_SIZE * 2.)),
         ];
-        let a = 5;
         let progress = text(format!("PROGRESS: {}", self.current_episode.as_info_str()))
             .width(Length::Fill)
             .horizontal_alignment(Horizontal::Center);
@@ -54,7 +54,6 @@ impl Bookmark {
             picture_row,
             text(self.movie.name.as_str())
                 .horizontal_alignment(Horizontal::Center)
-            
                 .width(Length::Fill)
                 .size(FONT_SIZE_HEADER),
             progress,
@@ -124,7 +123,7 @@ pub(crate) fn view_details(
     column![
         button(Icon::ArrowLeft.svg())
             .on_press(Message::FilterChanged(Filter::Bookmarks))
-            .width(Length::Fixed(50.)),
+            .width(Length::Fixed(ICON_SIZE * 2.)),
         row![
             text(&movie.name).size(FONT_SIZE_HEADER),
             text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
@@ -132,6 +131,7 @@ pub(crate) fn view_details(
         details_view_info(details, poster, current.as_ref()),
         details_view_edit(input_caches, movie.id, sync)
     ]
+    .spacing(20)
     .into()
 }
 fn details_view_edit(
@@ -142,21 +142,21 @@ fn details_view_edit(
     let episode = &input_caches[InputKind::EpisodeInput];
     let season = &input_caches[InputKind::SeasonInput];
     let current_progress_row = row![
-        text("Progress "),
-        Space::with_width(Length::Fixed(20.)),
+        text("Progress ").size(FONT_SIZE),
+        // Space::with_width(Length::Fixed(20.)),
         column![
-            row![
-                text("Episode"),
-                text_input("0", episode)
-                    .on_submit(Message::InputSubmit(InputKind::EpisodeInput))
-                    .on_input(|input| { Message::InputChanged(InputKind::EpisodeInput, input) })
-            ],
-            row![
-                text("Season"),
-                text_input("0", season)
-                    .on_submit(Message::InputSubmit(InputKind::SeasonInput))
-                    .on_input(|input| { Message::InputChanged(InputKind::SeasonInput, input) })
-            ]
+            text("Episode").line_height(LineHeight::Relative(2.)),
+            text("Season").line_height(LineHeight::Relative(2.)),
+        ],
+        column![
+            text_input("0", episode)
+                .on_submit(Message::InputSubmit(InputKind::EpisodeInput))
+                .on_input(|input| { Message::InputChanged(InputKind::EpisodeInput, input) })
+                .width(Length::Fixed(60.)),
+            text_input("0", season)
+                .on_submit(Message::InputSubmit(InputKind::SeasonInput))
+                .on_input(|input| { Message::InputChanged(InputKind::SeasonInput, input) })
+                .width(Length::Fixed(60.))
         ],
         match sync {
             SyncMode::NoSync => {
@@ -168,21 +168,25 @@ fn details_view_edit(
         }
         .width(Length::Fixed(50.))
         .on_press(Message::BookmarkMessage(id, BookmarkMessage::ToggleSync))
-    ];
+    ]
+    .spacing(10);
     let link = &input_caches[InputKind::LinkInput];
-    let link_input = text_input("Link:", link)
+    let link_input = text_input("https://link_to_movie/episode-{e}-season-{s}}", link)
         .on_submit(Message::InputSubmit(InputKind::LinkInput))
         .on_input(|input| Message::InputChanged(InputKind::LinkInput, input))
-        .width(Length::Fill)
-        .padding(15)
-        .size(FONT_SIZE);
+        .width(Length::Fill);
     let enter = button(Icon::Check.svg())
         .on_press(Message::InputSubmit(InputKind::LinkInput))
         .width(Length::Fixed(50.));
-    let link_row = row![text("Url "), link_input, enter];
-    let remove_bookmark = button(Icon::Trash.svg())
-        .on_press(Message::RemoveBookmark(id))
-        .width(Length::Fixed(50.));
+    let link_row = row![text("URL ").size(FONT_SIZE), link_input, enter].spacing(10);
+
+    let remove_bookmark = row![
+        text("Delete Bookmark").size(FONT_SIZE),
+        button(Icon::Trash.svg())
+            .on_press(Message::RemoveBookmark(id))
+            .width(Length::Fixed(50.))
+    ]
+    .spacing(10);
     column![current_progress_row, link_row, remove_bookmark]
 }
 fn details_view_info(
@@ -196,10 +200,11 @@ fn details_view_info(
         poster_row = poster_row
             .push(Image::<image::Handle>::new(image.clone()).width(Length::FillPortion(1)));
     }
+    poster_row = poster_row.push(Space::with_width(Length::Fixed(20.)));
     let latest_episode_block: Element<_, _, _> = if let Some(details) = details {
         let latest = details.last_published().unwrap();
         row![
-            text("Latest Episode: "),
+            container(text("Latest Episode: ").size(FONT_SIZE)).center_y(),
             column![text(&latest.name), text(latest.episode.as_info_str())]
         ]
         .into()
@@ -209,7 +214,7 @@ fn details_view_info(
     let upcoming_episode_block: Element<_, _, _> = if let Some(details) = details {
         if let Some(upcoming_episode) = details.next_episode_to_air() {
             row![
-                text("Upcoming Episode: "),
+                text("Upcoming Episode: ").size(FONT_SIZE),
                 column![
                     text(&upcoming_episode.name),
                     text(upcoming_episode.episode.as_info_str()),
@@ -227,20 +232,18 @@ fn details_view_info(
         Space::with_width(Length::FillPortion(1)).into()
     };
     let details_block = column![
-        if let Some(current) = current {
-            row![
-                text("Current Episode: "),
+        row![
+            text("Current Episode: ").size(FONT_SIZE),
+            if let Some(current) = current {
                 column![text(&current.name), text(current.episode.as_info_str())]
-            ]
-        } else {
-            row![
-                text("Current Episode: "),
+            } else {
                 column![text("TITLE"), text("---")]
-            ]
-        },
+            },
+        ],
         latest_episode_block,
         upcoming_episode_block
     ]
+    .spacing(20)
     .width(Length::FillPortion(4));
     poster_row = poster_row.push(details_block);
     poster_row

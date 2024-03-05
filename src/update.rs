@@ -261,6 +261,7 @@ impl State {
                 let cmd = window::change_mode(window::Id::MAIN, mode);
                 update = StateUpdate::new(cmd).into();
             }
+            Message::FontLoaded(_) => {}
         };
         update.unwrap_or_default()
     }

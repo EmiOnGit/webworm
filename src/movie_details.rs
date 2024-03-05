@@ -46,14 +46,11 @@ impl MovieDetails {
                     .filter(|s| !s.name.contains("Extras") && !s.name.contains("Specials"))
                     .map(|s| s.episode_count)
                     .sum();
-                let Some(episode_number) = last_episode_to_air
+                let episode_number = last_episode_to_air
                     .episode
                     .episode_number
                     .checked_sub(episodes_before_season)
-                else {
-                    error!("last_episode_to_air: {last_episode_to_air:?}, episodes_before_season: {episodes_before_season}, seasons: {:?}", self.seasons);
-                    panic!()
-                };
+                    .unwrap_or(current_season.episode_count);
                 self.fixed = true;
                 last_episode_to_air.episode.episode_number = episode_number;
             }

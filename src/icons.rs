@@ -2,7 +2,8 @@ use iced::{
     color, theme,
     widget::{svg, Svg},
 };
-pub const IconSize: f32 = 24.;
+
+pub const ICON_SIZE: f32 = 24.;
 
 pub enum Icon {
     Trash,
@@ -17,9 +18,12 @@ impl Icon {
     pub fn svg(&self) -> Svg {
         let handle = svg::Handle::from_memory(self.data());
 
-        svg(handle).style(theme::Svg::custom_fn(|_theme| svg::Appearance {
-            color: Some(color!(0xffffff)),
-        }))
+        svg(handle)
+            .style(theme::Svg::custom_fn(|_theme| svg::Appearance {
+                color: Some(color!(0xffffff)),
+            }))
+            .width(ICON_SIZE)
+            .height(ICON_SIZE)
     }
     const fn data(&self) -> &'static [u8] {
         match self {

@@ -7,12 +7,11 @@ use crate::save::{LoadError, SavedState};
 use crate::state::{GuiState, InputKind, State};
 use crate::view;
 use iced::alignment::{self, Alignment, Horizontal, Vertical};
-use iced::keyboard;
 use iced::theme::{self, Theme};
 use iced::widget::{
     button, column, container, keyed_column, row, scrollable, text, text_input, Space,
 };
-use iced::window;
+use iced::{keyboard, window};
 use iced::{Application, Element};
 use iced::{Color, Command, Length, Subscription};
 use once_cell::sync::Lazy;
@@ -306,7 +305,7 @@ fn view_controls(
     .into()
 }
 fn view_header() -> Element<'static, Message> {
-    let title = text("Webworm")
+    let title = text(TITLE_NAME)
         .size(FONT_SIZE_HEADER)
         .style(FG_COLOR)
         .horizontal_alignment(alignment::Horizontal::Left);

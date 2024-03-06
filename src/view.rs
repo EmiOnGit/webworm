@@ -124,10 +124,7 @@ pub(crate) fn view_details(
         button(Icon::ArrowLeft.svg())
             .on_press(Message::FilterChanged(Filter::Bookmarks))
             .width(Length::Fixed(ICON_SIZE * 2.)),
-        row![
-            text(&movie.name).size(FONT_SIZE_HEADER),
-            text(format!(" [{}]", &movie.original_name)).size(FONT_SIZE_HEADER)
-        ],
+        text(format!("{} [{}]", &movie.name, &movie.original_name)).size(FONT_SIZE_HEADER),
         details_view_info(details, poster, current.as_ref()),
         details_view_edit(input_caches, movie.id, sync)
     ]
@@ -143,7 +140,6 @@ fn details_view_edit(
     let season = &input_caches[InputKind::SeasonInput];
     let current_progress_row = row![
         text("Progress ").size(FONT_SIZE),
-        // Space::with_width(Length::Fixed(20.)),
         column![
             text("Episode").line_height(LineHeight::Relative(2.)),
             text("Season").line_height(LineHeight::Relative(2.)),
@@ -171,7 +167,7 @@ fn details_view_edit(
     ]
     .spacing(10);
     let link = &input_caches[InputKind::LinkInput];
-    let link_input = text_input("https://link_to_movie/episode-{e}-season-{s}}", link)
+    let link_input = text_input("https://link_to_movie/episode-{e}-season-{s}", link)
         .on_submit(Message::InputSubmit(InputKind::LinkInput))
         .on_input(|input| Message::InputChanged(InputKind::LinkInput, input))
         .width(Length::Fill);

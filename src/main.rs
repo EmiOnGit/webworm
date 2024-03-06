@@ -69,7 +69,7 @@ fn main() -> Result<()> {
         .init();
     App::run(Settings {
         window: window::Settings {
-            size: Size::new(500.0, 800.0),
+            size: Size::new(800.0, 500.0),
             ..window::Settings::default()
         },
         ..Settings::default()

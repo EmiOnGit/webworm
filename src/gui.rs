@@ -21,10 +21,10 @@ use tracing::error;
 use crate::bookmark::Bookmark;
 use crate::message::{empty_message, loading_message, Message, ShiftPressed};
 
+pub static FONT_SIZE_HEADER: u16 = 30;
+pub static FONT_SIZE: u16 = 22;
 const TITLE_NAME: &str = "Webworm";
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
-pub(crate) static FONT_SIZE_HEADER: u16 = 30;
-pub(crate) static FONT_SIZE: u16 = 22;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
 static ERROR_COLOR: Color = Color::from_rgb(1., 0.2, 0.2);
 
@@ -77,9 +77,8 @@ impl Application for App {
                 Command::batch(vec![update.command(), save])
             }
             App::CreateNew(_error) => {
-                match message {
-                    Message::CreateNew => *self = App::Loaded(State::default()),
-                    _ => {}
+                if let Message::CreateNew = message {
+                    *self = App::Loaded(State::default());
                 }
                 Command::none()
             }

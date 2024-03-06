@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 pub mod bookmark;
 pub mod filter;
 pub mod gui;

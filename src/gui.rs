@@ -4,7 +4,7 @@ use crate::filter::Filter;
 use crate::id::{EpisodeId, MovieIndex};
 use crate::movie::TmdbMovie;
 use crate::movie_details::EpisodeDetails;
-use crate::save::SavedState;
+use crate::save::{LoadError, SavedState};
 use crate::state::{GuiState, InputKind, State};
 use crate::view;
 use iced::alignment::{self, Alignment, Horizontal, Vertical};
@@ -27,12 +27,13 @@ static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 pub(crate) static FONT_SIZE_HEADER: u16 = 30;
 pub(crate) static FONT_SIZE: u16 = 22;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
+static ERROR_COLOR: Color = Color::from_rgb(1., 0.2, 0.2);
 
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum App {
     Loading,
-    CreateNew,
+    CreateNew(String),
     Loaded(State),
 }
 impl Application for App {
@@ -57,9 +58,11 @@ impl Application for App {
             App::Loading => {
                 match message {
                     Message::Loaded(Ok(state)) => return self.as_loaded(state),
-                    Message::Loaded(Err(_e)) => {
-                        error!("Something went wrong with loading the app state.");
-                        *self = App::CreateNew;
+                    Message::Loaded(Err(e)) => {
+                        *self = match e {
+                            LoadError::DeserializationError(s) => App::CreateNew(s),
+                            _ => App::Loaded(State::default()),
+                        };
                     }
                     _ => {
                         error!("Received message {message:?} in loading phase")
@@ -74,7 +77,7 @@ impl Application for App {
                 let save = state.save(saved);
                 Command::batch(vec![update.command(), save])
             }
-            App::CreateNew => {
+            App::CreateNew(_error) => {
                 match message {
                     Message::CreateNew => *self = App::Loaded(State::default()),
                     _ => {}
@@ -213,14 +216,27 @@ impl Application for App {
 
                 scrollable(container(content).padding(40).center_x()).into()
             }
-            App::CreateNew => {
-                let create = button("CREATE").on_press(Message::CreateNew);
-                container(create)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Center)
-                    .into()
+            App::CreateNew(error) => {
+                let create = button("OVERRIDE OLD STATE").on_press(Message::CreateNew);
+                container(
+                    column![
+                        row![
+                            text("State loading failed: ")
+                                .size(FONT_SIZE)
+                                .style(FG_COLOR),
+                            text(error).size(FONT_SIZE).style(ERROR_COLOR),
+                        ]
+                        .spacing(20),
+                        create
+                    ]
+                    .align_items(Alignment::Center)
+                    .spacing(20),
+                )
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Center)
+                .into()
             }
         }
     }

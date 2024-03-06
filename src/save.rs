@@ -1,11 +1,12 @@
 use std::{collections::HashMap, fs::File, io::Write};
 
+use async_std::{fs::create_dir_all, io::ReadExt};
 use iced::{
     widget::image::{self, Handle},
     Command,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::{
     bookmark::Bookmark,
@@ -25,8 +26,14 @@ pub struct SavedState {
 
 #[derive(Debug, Clone)]
 pub enum LoadError {
-    File,
-    Format,
+    /// Happen if the state file exists but `File::open` results in a error
+    OpenFile,
+    /// Happen if the creation of the state file results in a error
+    CreateFile,
+    /// Happens if reading the file to a string results in an error
+    ReadFile,
+    /// Hapens if deserializing the state to the struct failed
+    DeserializationError(String),
 }
 
 #[derive(Debug, Clone)]
@@ -44,29 +51,42 @@ fn path() -> std::path::PathBuf {
         std::env::current_dir().unwrap_or_default()
     }
 }
+fn poster_path() -> std::path::PathBuf {
+    let mut path = path();
+    path.push("posters");
+    path
+}
 impl SavedState {
     pub async fn load() -> Result<SavedState, LoadError> {
-        use async_std::prelude::*;
-
         let mut contents = String::new();
         let path = path();
         let mut state_path = path.clone();
         state_path.push("state.json");
-
-        let mut state_file = async_std::fs::File::open(state_path)
-            .await
-            .map_err(|_| LoadError::File)
-            .map_err(trace_io_error)?;
+        let mut state_file = if state_path.is_file() {
+            async_std::fs::File::open(state_path).await.map_err(|e| {
+                error!("failed to open state file with error {e:?}");
+                LoadError::OpenFile
+            })?
+        } else {
+            if let Ok(()) = create_dir_all(&path).await {
+                warn!("created directories {path:?}");
+            };
+            async_std::fs::File::create(state_path).await.map_err(|e| {
+                error!("failed to create a state file with error {e:?}");
+                LoadError::CreateFile
+            })?
+        };
 
         state_file
             .read_to_string(&mut contents)
             .await
-            .map_err(|_| LoadError::File)
-            .map_err(trace_io_error)?;
+            .map_err(|e| {
+                error!("failed to read content of state file to sting with error {e}");
+                LoadError::ReadFile
+            })?;
 
         serde_json::from_str::<SavedState>(&contents)
-            .map_err(|_| LoadError::Format)
-            .map_err(trace_io_error)
+            .map_err(|e| LoadError::DeserializationError(e.to_string()))
     }
 
     pub async fn save(self) -> Result<(), SaveError> {
@@ -108,8 +128,11 @@ fn trace_io_error<T: std::fmt::Debug>(t: T) -> T {
     t
 }
 pub async fn load_poster(id: MovieId, url: String) -> anyhow::Result<Handle> {
-    let mut path = path();
-    path.push("posters");
+    let mut path = poster_path();
+    if !path.exists() {
+        let _ = create_dir_all(&path).await;
+        warn!("created poster folder");
+    }
     path.push(format!("{}.png", id));
     if path.exists() {
         let bytes = async_std::fs::read(path).await?;

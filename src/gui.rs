@@ -2,7 +2,6 @@ use std::iter::once;
 
 use crate::filter::Filter;
 use crate::id::{EpisodeId, MovieIndex};
-use crate::movie::TmdbMovie;
 use crate::movie_details::EpisodeDetails;
 use crate::save::{LoadError, SavedState};
 use crate::state::{GuiState, InputKind, State};
@@ -106,12 +105,14 @@ impl Application for App {
             }) => {
                 let header = view_header();
                 let input = view_input(&input_caches[InputKind::SearchField]);
-                let controls = view_controls(movies, *filter);
+                let mut control_info = None;
                 let body = match filter {
                     Filter::Search => {
                         if movies.is_empty() {
                             empty_message(filter.empty_message())
                         } else {
+                            control_info =
+                                Some(format!("{} results found for search", movies.len()));
                             keyed_column(
                                 movies
                                     .iter()
@@ -140,6 +141,7 @@ impl Application for App {
                                         .matches_filter(&input_caches[InputKind::SearchField])
                                 })
                                 .collect();
+                            control_info = Some(format!("{} movies left", bookmarks.len()));
                             let chunk_size = 3;
                             let chunks = bookmarks.chunks_exact(chunk_size);
                             let remainder = chunks.remainder();
@@ -205,6 +207,7 @@ impl Application for App {
                         )
                     }
                 };
+                let controls = view_controls(control_info, *filter);
                 let content = match filter {
                     Filter::Bookmarks | Filter::Search | Filter::Completed => {
                         column![header, input, controls, body]
@@ -273,9 +276,10 @@ impl Application for App {
         Subscription::batch([on_press, on_release])
     }
 }
-fn view_controls(movies: &[TmdbMovie], current_filter: Filter) -> Element<Message> {
-    let movies_left = movies.len();
-
+fn view_controls(
+    control_info: Option<String>,
+    current_filter: Filter,
+) -> Element<'static, Message> {
     let filter_button = |label, filter, current_filter| {
         let label = text(label);
 
@@ -289,11 +293,7 @@ fn view_controls(movies: &[TmdbMovie], current_filter: Filter) -> Element<Messag
     };
 
     row![
-        text(format!(
-            "{movies_left} {} left",
-            if movies_left == 1 { "task" } else { "movies" }
-        ))
-        .width(Length::Fill),
+        text(control_info.unwrap_or_default()).width(Length::Fill),
         row![
             filter_button("Bookmarks", Filter::Bookmarks, current_filter),
             filter_button("Search", Filter::Search, current_filter),

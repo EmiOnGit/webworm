@@ -187,7 +187,7 @@ fn details_view_edit(
             .width(Length::Fixed(50.))
     ]
     .spacing(10);
-    column![current_progress_row, link_row, remove_bookmark]
+    column![current_progress_row, link_row, remove_bookmark].spacing(10)
 }
 fn details_view_info(
     details: Option<&MovieDetails>,

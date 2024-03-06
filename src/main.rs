@@ -14,10 +14,7 @@ pub mod tmdb;
 pub mod update;
 pub mod view;
 use anyhow::Result;
-use iced::{
-    font::{Family, Style, Weight},
-    window, Application, Font, Settings, Size,
-};
+use iced::{window, Application, Settings, Size};
 
 use crate::gui::App;
 use tracing::{level_filters::LevelFilter, Level};
@@ -68,13 +65,11 @@ fn main() -> Result<()> {
         .with(filter)
         .with(fmt_layer)
         .init();
-    let font = Font::with_name("Mona Sans");
     App::run(Settings {
         window: window::Settings {
             size: Size::new(500.0, 800.0),
             ..window::Settings::default()
         },
-        default_font: font,
         ..Settings::default()
     })?;
     Ok(())

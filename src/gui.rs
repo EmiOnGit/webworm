@@ -5,15 +5,15 @@ use crate::id::{EpisodeId, MovieIndex};
 use crate::movie::TmdbMovie;
 use crate::movie_details::EpisodeDetails;
 use crate::save::SavedState;
-use crate::state::{InputKind, State};
+use crate::state::{GuiState, InputKind, State};
 use crate::view;
-use iced::alignment::{self, Alignment};
+use iced::alignment::{self, Alignment, Horizontal, Vertical};
 use iced::keyboard;
 use iced::theme::{self, Theme};
 use iced::widget::{
-    button, column, container, keyed_column, row, scrollable, text, text_input, Space, Text,
+    button, column, container, keyed_column, row, scrollable, text, text_input, Space,
 };
-use iced::window::{self};
+use iced::window;
 use iced::{Application, Element};
 use iced::{Color, Command, Length, Subscription};
 use once_cell::sync::Lazy;
@@ -27,12 +27,12 @@ static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 pub(crate) static FONT_SIZE_HEADER: u16 = 30;
 pub(crate) static FONT_SIZE: u16 = 22;
 static FG_COLOR: Color = Color::from_rgb(0.5, 0.5, 0.5);
-const FONT: &[u8] = include_bytes!("../assets/MonaSans-Regular.ttf");
 
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum App {
     Loading,
+    CreateNew,
     Loaded(State),
 }
 impl Application for App {
@@ -44,10 +44,7 @@ impl Application for App {
     fn new(_flags: ()) -> (App, Command<Message>) {
         (
             App::Loading,
-            Command::batch(vec![
-                iced::font::load(FONT).map(Message::FontLoaded),
-                Command::perform(SavedState::load(), Message::Loaded),
-            ]),
+            Command::batch(vec![Command::perform(SavedState::load(), Message::Loaded)]),
         )
     }
 
@@ -60,9 +57,9 @@ impl Application for App {
             App::Loading => {
                 match message {
                     Message::Loaded(Ok(state)) => return self.as_loaded(state),
-                    Message::Loaded(Err(_)) => {
-                        error!("Something went wrong with loading the app state. Default configuration is used");
-                        *self = App::Loaded(State::default());
+                    Message::Loaded(Err(_e)) => {
+                        error!("Something went wrong with loading the app state.");
+                        *self = App::CreateNew;
                     }
                     _ => {
                         error!("Received message {message:?} in loading phase")
@@ -77,6 +74,13 @@ impl Application for App {
                 let save = state.save(saved);
                 Command::batch(vec![update.command(), save])
             }
+            App::CreateNew => {
+                match message {
+                    Message::CreateNew => *self = App::Loaded(State::default()),
+                    _ => {}
+                }
+                Command::none()
+            }
         }
     }
 
@@ -84,8 +88,12 @@ impl Application for App {
         match self {
             App::Loading => loading_message(),
             App::Loaded(State {
-                input_caches,
-                filter,
+                gui:
+                    GuiState {
+                        input_caches,
+                        filter,
+                        ..
+                    },
                 movies,
                 movie_details,
                 movie_posters,
@@ -205,6 +213,15 @@ impl Application for App {
 
                 scrollable(container(content).padding(40).center_x()).into()
             }
+            App::CreateNew => {
+                let create = button("CREATE").on_press(Message::CreateNew);
+                container(create)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Center)
+                    .into()
+            }
         }
     }
 
@@ -279,12 +296,7 @@ fn view_header() -> Element<'static, Message> {
         .style(FG_COLOR)
         .horizontal_alignment(alignment::Horizontal::Left);
 
-    let settings = icon('⚙')
-        .width(Length::Fill)
-        .size(FONT_SIZE_HEADER)
-        .style(FG_COLOR)
-        .horizontal_alignment(alignment::Horizontal::Right);
-    row![title, settings].into()
+    row![title].into()
 }
 fn view_input(input: &str) -> Element<'static, Message> {
     text_input("Search", input)
@@ -294,10 +306,4 @@ fn view_input(input: &str) -> Element<'static, Message> {
         .padding(15)
         .size(FONT_SIZE)
         .into()
-}
-pub fn icon(unicode: char) -> Text<'static> {
-    text(unicode.to_string())
-        // .font(crate::gui::ICON_FONT)
-        .width(20)
-        .horizontal_alignment(alignment::Horizontal::Center)
 }

@@ -9,7 +9,7 @@ use crate::{
     message::{BookmarkMessage, LinkMessage, Message, ShiftPressed},
     save::load_poster,
     state::{InputKind, State},
-    tmdb::{self, RequestType, TmdbConfig},
+    tmdb::{self, RequestType},
 };
 pub struct StateUpdate {
     command: Command<Message>,
@@ -58,18 +58,18 @@ impl State {
                 message
             ),
             Message::Saved(_) => {
-                self.saving = false;
+                self.gui.saving = false;
                 update = StateUpdate::default().just_saved().into();
             }
-            Message::InputChanged(kind, input) => self.input_caches[kind] = input,
+            Message::InputChanged(kind, input) => self.gui.input_caches[kind] = input,
             Message::InputSubmit(input) => match input {
-                InputKind::SearchField => match self.filter {
+                InputKind::SearchField => match self.gui.filter {
                     Filter::Search => {
                         let request = RequestType::TvSearch {
-                            query: self.input_caches[input].clone(),
+                            query: self.gui.input_caches[input].clone(),
                         };
                         update = self.update_state(Message::ExecuteRequest(request)).into();
-                        self.input_caches[input] = String::new();
+                        self.gui.input_caches[input] = String::new();
                     }
                     Filter::Details(_) => warn!("Input submit in details view received"),
                     Filter::Bookmarks | Filter::Completed => {
@@ -77,38 +77,38 @@ impl State {
                     }
                 },
                 InputKind::EpisodeInput => {
-                    let Filter::Details(movie_id) = self.filter else {
+                    let Filter::Details(movie_id) = self.gui.filter else {
                         return StateUpdate::default();
                     };
                     update = self
                         .update_state(Message::BookmarkMessage(
                             movie_id,
                             BookmarkMessage::SetE(
-                                self.input_caches[input].clone(),
+                                self.gui.input_caches[input].clone(),
                                 self.movie_details.get(&movie_id).cloned(),
                             ),
                         ))
                         .into();
                 }
                 InputKind::SeasonInput => {
-                    let Filter::Details(movie_id) = self.filter else {
+                    let Filter::Details(movie_id) = self.gui.filter else {
                         return StateUpdate::default();
                     };
                     update = self
                         .update_state(Message::BookmarkMessage(
                             movie_id,
                             BookmarkMessage::SetS(
-                                self.input_caches[input].clone(),
+                                self.gui.input_caches[input].clone(),
                                 self.movie_details.get(&movie_id).cloned(),
                             ),
                         ))
                         .into();
                 }
                 InputKind::LinkInput => {
-                    let Filter::Details(movie_id) = self.filter else {
+                    let Filter::Details(movie_id) = self.gui.filter else {
                         return StateUpdate::default();
                     };
-                    let input = &self.input_caches[input];
+                    let input = &self.gui.input_caches[input];
                     let link = Link::new(input);
                     let Ok(link) = link else {
                         error!("{input} is not a valid link. Error {link:?}");
@@ -119,10 +119,9 @@ impl State {
             },
 
             Message::ExecuteRequest(request) => {
-                let config = self.config();
                 let mut send_request = request.clone();
                 let cmd = if let RequestType::Poster { id, path } = request {
-                    Command::perform(load_poster(id, path.clone(), config), move |data| {
+                    Command::perform(load_poster(id, path.clone()), move |data| {
                         Message::RequestPoster(id, data.ok())
                     })
                 } else {
@@ -135,7 +134,7 @@ impl State {
                             send_request = reformated_request;
                         }
                     };
-                    Command::perform(tmdb::send_request(config, send_request), |data| {
+                    Command::perform(tmdb::send_request(send_request), |data| {
                         Message::RequestResponse(data.ok(), request)
                     })
                 };
@@ -163,8 +162,11 @@ impl State {
                 self.movie_posters.insert(id, Poster::Image(handle));
             }
             Message::FilterChanged(new_filter) => {
-                debug!("changed filter from {:?} to {:?}", self.filter, new_filter);
-                self.filter = new_filter;
+                debug!(
+                    "changed filter from {:?} gui.to {:?}",
+                    self.gui.filter, new_filter
+                );
+                self.gui.filter = new_filter;
                 // Load the current episode details if not already loaded
                 if let Filter::Details(movie_id) = new_filter {
                     self.set_detail_input_caches(movie_id);
@@ -202,9 +204,9 @@ impl State {
                     );
                     return StateUpdate::default();
                 };
-                debug!("Remove bookmark {:?}", &self.bookmarks[index]);
+                debug!("Remove gui.bookmark {:?}", &self.bookmarks[index]);
                 self.bookmarks.remove(index);
-                if Filter::Details(id) == self.filter {
+                if Filter::Details(id) == self.gui.filter {
                     let cmd = self.update_state(Message::FilterChanged(Filter::Bookmarks));
                     update = cmd.into();
                 }
@@ -249,23 +251,22 @@ impl State {
                 update = StateUpdate::new(cmd).into();
             }
             Message::TabPressed => {
-                let cmd = if self.shift_pressed == ShiftPressed::True {
+                let cmd = if self.gui.shift_pressed == ShiftPressed::True {
                     widget::focus_previous()
                 } else {
                     widget::focus_next()
                 };
                 update = StateUpdate::new(cmd).into();
             }
-            Message::ShiftPressed(shift) => self.shift_pressed = shift,
+            Message::ShiftPressed(shift) => self.gui.shift_pressed = shift,
             Message::ToggleFullscreen(mode) => {
                 let cmd = window::change_mode(window::Id::MAIN, mode);
                 update = StateUpdate::new(cmd).into();
             }
-            Message::FontLoaded(_) => {}
+            Message::CreateNew => {
+                error!("create new state event received in loaded state.");
+            }
         };
         update.unwrap_or_default()
-    }
-    fn config(&self) -> TmdbConfig {
-        self.tmdb_config.clone().expect("TMDB config is not loaded")
     }
 }

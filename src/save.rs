@@ -14,15 +14,13 @@ use crate::{
     link::Link,
     message::Message,
     state::State,
-    tmdb::{self, RequestType, TmdbConfig},
+    tmdb::{self, RequestType},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SavedState {
     pub bookmarks: Vec<Bookmark>,
     pub links: HashMap<MovieId, Link>,
-    #[serde(skip)]
-    pub tmdb_config: Option<TmdbConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -42,24 +40,18 @@ fn path() -> std::path::PathBuf {
     if let Some(project_dirs) = directories_next::ProjectDirs::from("", "", "Webworm") {
         project_dirs.data_dir().into()
     } else {
+        error!("Could not retrieve project directory. Using current directory instead");
         std::env::current_dir().unwrap_or_default()
     }
 }
 impl SavedState {
-    fn with_tmdb(mut self, tmdb_config: Option<TmdbConfig>) -> Self {
-        self.tmdb_config = tmdb_config;
-        self
-    }
     pub async fn load() -> Result<SavedState, LoadError> {
         use async_std::prelude::*;
 
         let mut contents = String::new();
-        let mut conf_contents = String::new();
         let path = path();
         let mut state_path = path.clone();
         state_path.push("state.json");
-        let mut conf_path = path.clone();
-        conf_path.push("cred");
 
         let mut state_file = async_std::fs::File::open(state_path)
             .await
@@ -71,22 +63,10 @@ impl SavedState {
             .await
             .map_err(|_| LoadError::File)
             .map_err(trace_io_error)?;
-        let mut cred_file = async_std::fs::File::open(conf_path)
-            .await
-            .map_err(|_| LoadError::File)
-            .map_err(trace_io_error)?;
 
-        cred_file
-            .read_to_string(&mut conf_contents)
-            .await
-            .map_err(|_| LoadError::File)
-            .map_err(trace_io_error)?;
-
-        let tmdb_config = TmdbConfig::new(&conf_contents);
         serde_json::from_str::<SavedState>(&contents)
             .map_err(|_| LoadError::Format)
             .map_err(trace_io_error)
-            .map(|state| state.with_tmdb(tmdb_config))
     }
 
     pub async fn save(self) -> Result<(), SaveError> {
@@ -127,7 +107,7 @@ fn trace_io_error<T: std::fmt::Debug>(t: T) -> T {
     error!("Saving/Loading failed with {t:?}");
     t
 }
-pub async fn load_poster(id: MovieId, url: String, config: TmdbConfig) -> anyhow::Result<Handle> {
+pub async fn load_poster(id: MovieId, url: String) -> anyhow::Result<Handle> {
     let mut path = path();
     path.push("posters");
     path.push(format!("{}.png", id));
@@ -137,7 +117,7 @@ pub async fn load_poster(id: MovieId, url: String, config: TmdbConfig) -> anyhow
         Ok(handle)
     } else {
         let req = RequestType::Poster { id, path: url };
-        let response = tmdb::send_byte_request(config.clone(), req).await?;
+        let response = tmdb::send_byte_request(req).await?;
         File::create(path)?.write_all(&response)?;
         let handle = image::Handle::from_memory(response);
         Ok(handle)
@@ -147,7 +127,6 @@ impl App {
     pub fn as_loaded(&mut self, state: SavedState) -> Command<Message> {
         // set self to be loaded
         *self = App::Loaded(State {
-            tmdb_config: state.tmdb_config,
             bookmarks: state.bookmarks.clone(),
             links: state.links,
             ..State::default()

@@ -11,7 +11,6 @@ use std::ops::{Index, IndexMut};
 
 use crate::movie::TmdbMovie;
 use crate::movie_details::{EpisodeDetails, MovieDetails};
-use crate::tmdb::TmdbConfig;
 
 use crate::bookmark::{Bookmark, Poster};
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -47,38 +46,38 @@ impl Index<InputKind> for InputCaches {
         &self.0[index.index()]
     }
 }
-
 #[derive(Debug, Default)]
-pub struct State {
+pub struct GuiState {
     pub input_caches: InputCaches,
     pub filter: Filter,
+    pub dirty: bool,
+    pub saving: bool,
+    pub shift_pressed: ShiftPressed,
+}
+#[derive(Debug, Default)]
+pub struct State {
+    pub gui: GuiState,
     pub movies: Vec<TmdbMovie>,
     pub movie_details: HashMap<MovieId, MovieDetails>,
     pub movie_posters: HashMap<MovieId, Poster>,
     pub episode_details: HashMap<EpisodeId, EpisodeDetails>,
     pub links: HashMap<MovieId, Link>,
     pub bookmarks: Vec<Bookmark>,
-    pub dirty: bool,
-    pub saving: bool,
-    pub tmdb_config: Option<TmdbConfig>,
-    pub shift_pressed: ShiftPressed,
 }
 impl State {
     pub fn save(&mut self, saved: bool) -> Command<Message> {
         if !saved {
-            self.dirty = true;
+            self.gui.dirty = true;
         }
 
-        if self.dirty && !self.saving {
-            self.dirty = false;
-            self.saving = true;
+        if self.gui.dirty && !self.gui.saving {
+            self.gui.dirty = false;
+            self.gui.saving = true;
             debug!("saving state");
             Command::perform(
                 SavedState {
                     bookmarks: self.bookmarks.clone(),
                     links: self.links.clone(),
-                    // We ignore it anyway since we save it in a text file
-                    tmdb_config: None,
                 }
                 .save(),
                 Message::Saved,
@@ -102,8 +101,8 @@ impl State {
             .get(&movie_id)
             .map(|link| link.string_link.clone())
             .unwrap_or_default();
-        self.input_caches[InputKind::EpisodeInput] = episode.episode().to_string();
-        self.input_caches[InputKind::SeasonInput] = episode.season().to_string();
-        self.input_caches[InputKind::LinkInput] = link;
+        self.gui.input_caches[InputKind::EpisodeInput] = episode.episode().to_string();
+        self.gui.input_caches[InputKind::SeasonInput] = episode.season().to_string();
+        self.gui.input_caches[InputKind::LinkInput] = link;
     }
 }

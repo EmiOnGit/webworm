@@ -1,6 +1,6 @@
 use iced::widget::image::Handle;
 use iced::widget::{container, text};
-use iced::{alignment, font, window, Color, Element, Length};
+use iced::{alignment, window, Color, Element, Length};
 
 use crate::filter::Filter;
 use crate::id::MovieId;
@@ -11,7 +11,7 @@ use crate::tmdb::RequestType;
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    FontLoaded(Result<(), font::Error>),
+    CreateNew,
     // Still loading
     Loaded(Result<SavedState, LoadError>),
     // Finished loading

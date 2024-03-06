@@ -4,10 +4,12 @@ use crate::{
     movie_details::SeasonEpisode,
 };
 use anyhow::Result;
-use core::fmt;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use tracing::info;
+
+const BEAR: &str = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNjk0MWZiYjQxYmM4ZjEyYjNjZmFmNzU5YTg1ZmM2NiIsInN1YiI6IjY1YjY0OTQ2NjBjNTFkMDE4NGQyNDhlNiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.sFwFG4LtWHtO5rbRMEwCNS7thN4n-NrDThzAxRo5rHQ";
+
 #[derive(Debug, Clone)]
 pub enum RequestType {
     TvSearch { query: String },
@@ -47,52 +49,31 @@ impl RequestType {
         format!("{base_url}{body}{rest}")
     }
 }
-pub async fn send_request(config: TmdbConfig, request: RequestType) -> Result<String> {
+pub async fn send_request(request: RequestType) -> Result<String> {
     let url = request.url();
     info!("send request with {}", &url[8..]);
     let request = Client::new()
         .get(url)
         .header("accept", "application/json")
-        .bearer_auth(config.token.clone())
+        .bearer_auth(BEAR)
         .build()
         .unwrap();
     let response = Client::new().execute(request)?;
     let data: String = response.text().unwrap();
     Ok(data)
 }
-pub async fn send_byte_request(config: TmdbConfig, request: RequestType) -> Result<Vec<u8>> {
+pub async fn send_byte_request(request: RequestType) -> Result<Vec<u8>> {
     let url = request.url();
     info!("send request with {}", &url[8..]);
     let request = Client::new()
         .get(url)
         .header("accept", "application/json")
-        .bearer_auth(config.token.clone())
+        .bearer_auth(BEAR)
         .build()
         .unwrap();
     let response = Client::new().execute(request)?;
     let data: Vec<u8> = response.bytes().unwrap().into_iter().collect();
     Ok(data)
-}
-#[derive(Clone)]
-pub struct TmdbConfig {
-    token: String,
-}
-impl fmt::Debug for TmdbConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TmdbConfig [Confidential]")
-    }
-}
-impl TmdbConfig {
-    pub fn new(content: &str) -> Option<TmdbConfig> {
-        // let content = async_std::fs::read_to_string("cred.md").await?;
-        let lines: Vec<&str> = content
-            .lines()
-            .filter(|line| !line.starts_with('#'))
-            .collect();
-        Some(TmdbConfig {
-            token: lines[0].to_owned(),
-        })
-    }
 }
 #[derive(Debug, Clone, Deserialize)]
 pub struct TmdbResponse {

@@ -4,8 +4,8 @@ use iced::widget::text::LineHeight;
 use iced::widget::{
     button, column, container, image, row, text, text_input, Column, Image, Row, Space,
 };
+use iced::Length;
 use iced::{Alignment, Element};
-use iced::{Font, Length};
 
 use crate::bookmark::{Bookmark, Poster, SyncMode};
 use crate::filter::Filter;
